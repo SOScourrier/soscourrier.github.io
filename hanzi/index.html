@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entraîneur de tracé Hanzi</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#b5472e">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
+<style>
+  :root{
+    --bg:#faf9f6; --card:#ffffff; --ink:#1f1f1f; --muted:#6b6b66;
+    --line:#e2e0d8; --accent:#b5472e; --accent-light:#f4e3dd;
+    --grid:#d8d5ca; --ok:#2f7d4f; --ok-light:#e6f2ea;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:var(--bg); color:var(--ink); padding:24px 16px 48px;
+  }
+  .wrap{max-width:560px; margin:0 auto}
+  h1{font-size:20px; font-weight:600; text-align:center; margin:0 0 4px}
+  .subtitle{text-align:center; color:var(--muted); font-size:13px; margin:0 0 22px}
+  h2{font-size:14px; font-weight:600; margin:0 0 10px; color:var(--ink)}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; margin-bottom:16px;
+  }
+
+  .session-row{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap}
+  .session-row select{
+    flex:1; min-width:110px; padding:9px 10px; border:1px solid var(--line);
+    border-radius:8px; background:#fff; font-size:14px; color:var(--ink);
+  }
+  .session-row button{
+    padding:9px 18px; border:none; border-radius:8px; background:var(--accent);
+    color:#fff; font-size:14px; font-weight:500; cursor:pointer; white-space:nowrap;
+  }
+  .session-row button:hover{opacity:0.9}
+
+  .session-progress{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:13px; color:var(--muted); margin-top:4px; margin-bottom:14px;
+  }
+  .session-progress .bar{
+    flex:1; height:6px; background:var(--line); border-radius:3px; margin:0 10px; overflow:hidden;
+  }
+  .session-progress .bar-fill{height:100%; background:var(--accent); width:0%}
+
+  .char-list{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px}
+  .char-list button{
+    position:relative; width:38px; height:38px; font-size:16px; border:1px solid var(--line);
+    background:var(--card); border-radius:6px; cursor:pointer; color:var(--ink);
+  }
+  .char-list button:hover{border-color:var(--accent)}
+  .char-list button.current{border-color:var(--accent); border-width:2px; font-weight:600}
+  .char-list button.done-ok{background:var(--ok-light); border-color:var(--ok)}
+  .char-list button.done-retry{background:var(--accent-light); border-color:var(--accent)}
+  .char-list button:disabled{cursor:default; opacity:0.85}
+
+  .finish-btn{
+    display:none; width:100%; padding:9px; border:1px solid var(--line); border-radius:8px;
+    background:var(--card); font-size:13px; color:var(--ink); cursor:pointer; margin-top:2px;
+  }
+  .finish-btn:hover{border-color:var(--accent); color:var(--accent)}
+
+  .placeholder{
+    text-align:center; color:var(--muted); font-size:13px; padding:20px 10px;
+  }
+
+  .char-info{display:flex; align-items:center; gap:8px; margin-bottom:14px}
+  .char-info .pinyin{font-size:16px; color:var(--accent); font-weight:600}
+  .char-info .strokes-count{font-size:12px; color:var(--muted); margin-left:auto}
+  .listen-icon{
+    border:none; background:transparent; cursor:pointer; font-size:15px;
+    padding:2px 4px; line-height:1; border-radius:6px; opacity:0.75;
+  }
+  .listen-icon:hover{opacity:1; background:var(--accent-light)}
+  .outline-toggle{
+    display:flex; align-items:center; gap:4px; font-size:12px; color:var(--muted); cursor:pointer;
+  }
+  .outline-toggle input{cursor:pointer}
+
+  #target{
+    width:280px; height:280px; margin:0 auto;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:100% 100%, 100% 100%;
+    background-position:center;
+    border:1px solid var(--grid);
+    position:relative;
+  }
+  #target::before, #target::after{ content:''; position:absolute; background:var(--grid); }
+  #target::before{left:0; right:0; top:50%; height:1px}
+  #target::after{top:0; bottom:0; left:50%; width:1px}
+
+  .controls{display:flex; gap:8px; margin-top:16px; justify-content:center; flex-wrap:wrap}
+  .controls button{
+    padding:9px 16px; border:1px solid var(--line); border-radius:8px;
+    background:var(--card); font-size:13px; cursor:pointer; color:var(--ink);
+  }
+  .controls button.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .controls button:hover:not(:disabled){border-color:var(--accent)}
+  .controls button.primary:hover{opacity:0.9}
+  .controls button:disabled{opacity:0.35; cursor:default}
+
+  .quiz-status{ text-align:center; font-size:13px; color:var(--muted); margin-top:10px; min-height:18px; }
+  .quiz-status.ok{color:var(--ok)}
+  .quiz-status.err{color:var(--accent)}
+
+  .error{ text-align:center; color:var(--accent); font-size:13px; padding:8px; display:none; }
+
+  .summary{display:none}
+  .summary table{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px}
+  .summary th, .summary td{text-align:left; padding:6px 4px; border-bottom:1px solid var(--line)}
+  .summary th{color:var(--muted); font-weight:500}
+  .summary .tag{ display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; }
+  .summary .tag.good{background:var(--ok-light); color:var(--ok)}
+  .summary .tag.retry{background:var(--accent-light); color:var(--accent)}
+  .summary .tag.pending{background:var(--line); color:var(--muted)}
+  .summary button{
+    margin-top:14px; padding:9px 18px; border:none; border-radius:8px; background:var(--accent);
+    color:#fff; font-size:14px; font-weight:500; cursor:pointer; width:100%;
+  }
+
+  .review-empty{ text-align:center; color:var(--muted); font-size:13px; padding:10px }
+  .review-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:12px }
+  .review-item{
+    display:flex; align-items:center; gap:10px; padding:8px 10px;
+    border:1px solid var(--line); border-radius:8px; background:var(--bg);
+  }
+  .review-item .rc{ font-size:20px; width:28px; text-align:center }
+  .review-item .ri{ flex:1; min-width:0 }
+  .review-item .rp{ font-size:13px; color:var(--accent); font-weight:600 }
+  .review-item .rm{ font-size:12px; color:var(--muted) }
+  .review-item .rf{ font-size:11px; color:var(--muted); white-space:nowrap }
+  .review-item .rok{
+    border:1px solid var(--ok); color:var(--ok); background:var(--ok-light);
+    border-radius:6px; padding:5px 9px; font-size:12px; cursor:pointer; white-space:nowrap;
+  }
+  .review-item .rok:hover{ opacity:0.85 }
+  .review-actions{ display:flex; gap:8px; margin-top:4px }
+  .review-actions button{
+    flex:1; padding:9px; border:none; border-radius:8px; background:var(--accent);
+    color:#fff; font-size:13px; font-weight:500; cursor:pointer;
+  }
+  .review-actions button:disabled{ opacity:0.4; cursor:default }
+
+  .review-tag{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--accent);
+    background:var(--accent-light); border-radius:10px; padding:2px 9px; margin-left:4px;
+  }
+  .review-tag button{
+    border:none; background:transparent; color:var(--ok); font-size:11px; font-weight:600;
+    cursor:pointer; padding:0; text-decoration:underline;
+  }
+
+  .backup-row{ display:flex; gap:8px; flex-wrap:wrap }
+  .backup-row button{
+    flex:1; min-width:140px; padding:9px 12px; border:1px solid var(--line); border-radius:8px;
+    background:var(--card); font-size:13px; cursor:pointer; color:var(--ink);
+  }
+  .backup-row button:hover{ border-color:var(--accent); color:var(--accent) }
+  .backup-status{ font-size:12px; color:var(--muted); margin-top:8px; min-height:16px }
+  .backup-status.ok{ color:var(--ok) }
+  .backup-status.err{ color:var(--accent) }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Entraîneur de tracé Hanzi</h1>
+  <p class="subtitle">Séances d'entraînement par niveau HSK</p>
+
+  <div class="card">
+    <h2>Séance d'entraînement</h2>
+    <div class="session-row">
+      <select id="levelSelect">
+        <option value="moncours" selected>Mon cours (80 caractères)</option>
+        <option value="hsk1">HSK 1 — débutant</option>
+        <option value="hsk2">HSK 2</option>
+        <option value="hsk3">HSK 3</option>
+        <option value="all">Tous niveaux</option>
+      </select>
+      <select id="batchSelect">
+        <option value="5">5 caractères</option>
+        <option value="10" selected>10 caractères</option>
+        <option value="15">15 caractères</option>
+        <option value="20">20 caractères</option>
+      </select>
+      <button id="startSessionBtn">Générer une séance</button>
+    </div>
+
+    <div id="sessionArea" style="display:none">
+      <div class="session-progress">
+        <span id="sessionCounter">1 / 10</span>
+        <div class="bar"><div class="bar-fill" id="sessionBarFill"></div></div>
+        <span id="sessionLevelLabel">HSK 1</span>
+      </div>
+      <div class="char-list" id="charList"></div>
+      <button class="finish-btn" id="finishBtn" style="display:block">Voir le récapitulatif</button>
+    </div>
+  </div>
+
+  <div class="card" id="reviewCard">
+    <h2>À revoir</h2>
+    <p style="font-size:13px; color:var(--muted); margin:0 0 10px">Caractères ratés plusieurs fois. Ils restent ici tant que tu ne les marques pas comme acquis.</p>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-actions">
+      <button id="reviewSessionBtn" disabled>Réviser cette liste</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Sauvegarde entre appareils</h2>
+    <p style="font-size:13px; color:var(--muted); margin:0 0 10px">Ton historique reste sur cet appareil (mémoire du navigateur). Pour le retrouver sur ton autre ordinateur ou ton natel, exporte-le ici puis importe-le là-bas.</p>
+    <div class="backup-row">
+      <button id="exportBtn">⬇ Exporter (.json)</button>
+      <button id="importBtn">⬆ Importer (.json)</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
+    <div class="backup-status" id="backupStatus"></div>
+  </div>
+
+  <div class="card summary" id="summaryCard">
+    <h2>Récapitulatif de la séance</h2>
+    <p style="font-size:13px; color:var(--muted); margin:0">Résultats des caractères de cette séance.</p>
+    <table>
+      <thead><tr><th>Caractère</th><th>Pinyin</th><th>Résultat</th></tr></thead>
+      <tbody id="summaryBody"></tbody>
+    </table>
+    <button id="closeSummaryBtn">Fermer</button>
+  </div>
+
+  <div class="error" id="errorMsg"></div>
+
+  <div class="card placeholder" id="placeholderCard">
+    <h2>Sélection du jour</h2>
+    <p style="font-size:13px; color:var(--muted); margin:0 0 10px">20 caractères HSK1 tirés au sort à l'ouverture de la page — recharge la page pour en obtenir une nouvelle sélection.</p>
+    <div class="char-list" id="dailyList" style="margin-bottom:12px"></div>
+    <button id="startDailyBtn" style="width:100%; padding:9px; border:none; border-radius:8px; background:var(--accent); color:#fff; font-size:14px; font-weight:500; cursor:pointer;">S'entraîner avec cette sélection</button>
+  </div>
+
+  <div class="card" id="practiceCard" style="display:none">
+    <div class="char-info">
+      <span class="pinyin" id="pinyinLabel">—</span>
+      <button id="listenBtn" class="listen-icon" title="Écouter la prononciation" aria-label="Écouter la prononciation">🔊</button>
+      <span id="reviewTagWrap"></span>
+      <label class="outline-toggle" for="outlineToggle">
+        <input type="checkbox" id="outlineToggle" checked>
+        Modèle
+      </label>
+      <span class="strokes-count" id="strokeCount"></span>
+    </div>
+    <div id="target"></div>
+    <div class="controls">
+      <button id="prevBtn">◀ Précédent</button>
+      <button id="animateBtn">Voir l'animation</button>
+      <button id="quizBtn" class="primary">Rejouer</button>
+      <button id="nextBtn">Suivant ▶</button>
+    </div>
+    <div class="quiz-status" id="quizStatus"></div>
+  </div>
+</div>
+
+<script>
+// Sélections de caractères par niveau HSK (listes non exhaustives, orientées vocabulaire courant)
+var HSK1 = [
+  ['爱','ài','aimer'],['八','bā','huit'],['爸','bà','papa'],['杯','bēi','tasse'],['北','běi','nord'],
+  ['本','běn','livre / mesure'],['不','bù','ne...pas'],['菜','cài','plat, légume'],['茶','chá','thé'],
+  ['长','cháng','long'],['唱','chàng','chanter'],['车','chē','voiture'],['吃','chī','manger'],
+  ['出','chū','sortir'],['打','dǎ','frapper, jouer'],['大','dà','grand'],['的','de','particule'],
+  ['点','diǎn','heure, point'],['电','diàn','électricité'],['东','dōng','est'],['都','dōu','tous'],
+  ['读','dú','lire'],['对','duì','correct'],['多','duō','beaucoup'],['儿','ér','fils, enfant'],
+  ['二','èr','deux'],['饭','fàn','repas, riz'],['飞','fēi','voler'],['分','fēn','minute'],
+  ['高','gāo','grand, haut'],['个','gè','mesure générale'],['工','gōng','travail'],['狗','gǒu','chien'],
+  ['关','guān','fermer'],['贵','guì','cher'],['过','guò','passer'],['还','hái','encore'],
+  ['孩','hái','enfant'],['汉','hàn','chinois (han)'],['好','hǎo','bien, bon'],['喝','hē','boire'],
+  ['和','hé','et'],['黑','hēi','noir'],['很','hěn','très'],['后','hòu','après'],['话','huà','parole'],
+  ['回','huí','retourner'],['会','huì','pouvoir, savoir'],['火','huǒ','feu'],['机','jī','machine'],
+  ['几','jǐ','combien'],['家','jiā','famille, maison'],['叫','jiào','appeler, s\'appeler'],
+  ['今','jīn','maintenant'],['进','jìn','entrer'],['九','jiǔ','neuf'],['开','kāi','ouvrir'],
+  ['看','kàn','regarder'],['块','kuài','morceau, monnaie'],['来','lái','venir'],['老','lǎo','vieux'],
+  ['了','le','particule accompli'],['冷','lěng','froid'],['里','lǐ','dedans'],['六','liù','six'],
+  ['妈','mā','maman'],['吗','ma','particule question'],['买','mǎi','acheter'],['猫','māo','chat'],
+  ['没','méi','ne pas avoir'],['每','měi','chaque'],['妹','mèi','petite sœur'],['们','men','pluriel'],
+  ['米','mǐ','riz'],['面','miàn','nouille, visage'],['明','míng','clair'],['名','míng','nom'],
+  ['哪','nǎ','lequel'],['那','nà','celui-là'],['奶','nǎi','lait'],['男','nán','homme'],
+  ['呢','ne','particule'],['能','néng','pouvoir'],['你','nǐ','tu, toi'],['年','nián','année'],
+  ['女','nǚ','femme'],['朋','péng','ami'],['七','qī','sept'],['钱','qián','argent'],
+  ['前','qián','devant'],['请','qǐng','s\'il te plaît'],['去','qù','aller'],['热','rè','chaud'],
+  ['人','rén','personne'],['认','rèn','reconnaître'],['日','rì','jour, soleil'],['三','sān','trois'],
+  ['上','shàng','au-dessus'],['少','shǎo','peu'],['谁','shéi','qui'],['什','shén','quoi'],
+  ['十','shí','dix'],['时','shí','temps'],['是','shì','être'],['书','shū','livre'],
+  ['水','shuǐ','eau'],['睡','shuì','dormir'],['说','shuō','parler'],['四','sì','quatre'],
+  ['岁','suì','âge (ans)'],['他','tā','il, lui'],['她','tā','elle'],['太','tài','trop, très'],
+  ['天','tiān','ciel, jour'],['听','tīng','écouter'],['同','tóng','même'],['喂','wèi','allô'],
+  ['我','wǒ','je, moi'],['五','wǔ','cinq'],['西','xī','ouest'],['喜','xǐ','aimer'],
+  ['下','xià','en bas'],['先','xiān','d\'abord'],['现','xiàn','maintenant'],['想','xiǎng','penser, vouloir'],
+  ['小','xiǎo','petit'],['些','xiē','quelques'],['写','xiě','écrire'],['谢','xiè','remercier'],
+  ['星','xīng','étoile'],['姓','xìng','nom de famille'],['学','xué','étudier'],['一','yī','un'],
+  ['医','yī','médecine'],['衣','yī','vêtement'],['椅','yǐ','chaise'],['右','yòu','droite'],
+  ['鱼','yú','poisson'],['雨','yǔ','pluie'],['月','yuè','lune, mois'],['再','zài','encore'],
+  ['在','zài','à, être à'],['早','zǎo','tôt, matin'],['怎','zěn','comment'],['站','zhàn','gare, station'],
+  ['这','zhè','ceci'],['中','zhōng','milieu, Chine'],['住','zhù','habiter'],['桌','zhuō','table'],
+  ['字','zì','caractère'],['昨','zuó','hier'],['坐','zuò','s\'asseoir'],['做','zuò','faire']
+];
+
+var HSK2 = [
+  ['啊','a','particule'],['吧','ba','particule suggestion'],['白','bái','blanc'],['班','bān','classe'],
+  ['帮','bāng','aider'],['报','bào','journal'],['比','bǐ','comparer'],['别','bié','ne pas, autre'],
+  ['病','bìng','maladie'],['才','cái','seulement alors'],['差','chà','manquer, mauvais'],
+  ['穿','chuān','porter (habit)'],['词','cí','mot'],['到','dào','arriver'],['得','dé','obtenir'],
+  ['等','děng','attendre'],['弟','dì','petit frère'],['懂','dǒng','comprendre'],['而','ér','et, mais'],
+  ['发','fā','envoyer, produire'],['房','fáng','maison, pièce'],['非','fēi','non'],['服','fú','vêtement'],
+  ['该','gāi','devoir'],['干','gàn','faire'],['感','gǎn','sentir'],['刚','gāng','juste (temps)'],
+  ['告','gào','dire'],['哥','gē','grand frère'],['给','gěi','donner'],['跟','gēn','avec, suivre'],
+  ['公','gōng','public'],['共','gòng','ensemble'],['逛','guàng','flâner'],['借','jiè','emprunter'],
+  ['见','jiàn','voir'],['角','jiǎo','coin'],['觉','jué','sentir'],['决','jué','décider'],
+  ['可','kě','pouvoir'],['课','kè','cours'],['快','kuài','rapide'],['离','lí','loin de'],
+  ['两','liǎng','deux (mesure)'],['楼','lóu','étage, immeuble'],['旅','lǚ','voyager'],
+  ['忙','máng','occupé'],['卖','mài','vendre'],['慢','màn','lent'],['门','mén','porte'],
+  ['牛','niú','bœuf'],['旁','páng','à côté'],['跑','pǎo','courir'],['便','pián','pratique'],
+  ['票','piào','ticket'],['妻','qī','épouse'],['其','qí','ce, cela'],['起','qǐ','se lever'],
+  ['千','qiān','mille'],['晴','qíng','ensoleillé'],['清','qīng','clair'],['让','ràng','laisser']
+];
+
+var HSK3 = [
+  ['把','bǎ','tenir (particule)'],['搬','bān','déménager'],['办','bàn','organiser'],
+  ['包','bāo','sac, envelopper'],['饱','bǎo','rassasié'],['保','bǎo','protéger'],
+  ['被','bèi','par (passif)'],['笔','bǐ','stylo'],['必','bì','devoir'],
+  ['变','biàn','changer'],['表','biǎo','montre, exprimer'],['冰','bīng','glace'],
+  ['擦','cā','essuyer'],['猜','cāi','deviner'],['参','cān','participer'],
+  ['草','cǎo','herbe'],['层','céng','étage'],['成','chéng','devenir'],
+  ['诚','chéng','sincère']
+];
+
+var MON_COURS = [
+  ['我','wǒ','I, me'],['你','nǐ','you'],['他','tā','he, him'],
+  ['她','tā','she, her'],['们','men','plural maker for people'],['这','zhè','here, this'],
+  ['那','nà','there, that'],['哪','nǎ','where'],['儿','ér','son'],
+  ['谁','shéi, shuí','who'],['什','shén','what'],['么','me','interrogative final particle'],
+  ['多','duō','many'],['少','shǎo','few, little'],['几','jǐ','a few, how many'],
+  ['怎','zěn','how'],['样','yàng','manner, way'],['一','yī','one'],
+  ['二','èr','two'],['三','sān','three'],['四','sì','four'],
+  ['五','wǔ','five'],['六','liù','six'],['七','qī','seven'],
+  ['八','bā','eight'],['九','jiǔ','nine'],['十','shí','ten'],
+  ['零','líng','zero'],['个','gè','general counter'],['岁','suì','year'],
+  ['本','běn','counter for books'],['些','xiē','some'],['块','kuài','piece'],
+  ['不','bù','not'],['没','méi','not'],['很','hěn','quite, very'],
+  ['太','tài','too'],['都','dōu','both, all'],['和','hé','and'],
+  ['在','zài','in, on, at'],['的','de','possessive particle'],['了','le','modal particle, completed action marker'],
+  ['吗','ma','question particle'],['呢','ne','sentence final particle for follow-up questions'],['喂','wèi','hello'],
+  ['家','jiā','home'],['学','xué','to learn/study'],['校','xiào','school'],
+  ['饭','fàn','meal, (cooked) rice'],['店','diàn','shop, store'],['商','shāng','business, commerce'],
+  ['医','yī','medicine, medical'],['院','yuàn','institution, courtyard'],['火','huǒ','fire'],
+  ['车','chē','car, vehicle'],['站','zhàn','station'],['中','zhōng','middle'],
+  ['国','guó','country'],['北','běi','north'],['京','jīng','capital'],
+  ['上','shàng','up'],['下','xià','down'],['前','qián','front, forward'],
+  ['面','miàn','side, surface'],['后','hòu','behind, back'],['里','lǐ','inside'],
+  ['今','jīn','today, present'],['天','tiān','sky, day'],['明','míng','bright, next'],
+  ['昨','zuó','yesterday'],['午','wǔ','noon'],['年','nián','year'],
+  ['月','yuè','month'],['日','rì','day'],['星','xīng','star'],
+  ['期','qī','period of time'],['点','diǎn','dot, spot'],['钟','zhōng','clock, oˈclock'],
+  ['分','fēn','to divide'],['现','xiàn','present, to appear']
+];
+
+var LEVELS = { hsk1: HSK1, hsk2: HSK2, hsk3: HSK3, moncours: MON_COURS };
+var pinyinMap = {};
+var allCharsMap = {};
+[HSK1, HSK2, HSK3, MON_COURS].forEach(function(list){
+  list.forEach(function(e){
+    // En cas de caractère présent dans plusieurs listes, on garde la première
+    // rencontrée (HSK d'abord) pour ne pas changer l'affichage existant.
+    if(!(e[0] in pinyinMap)) pinyinMap[e[0]] = e[1] + ' — ' + e[2];
+    if(!(e[0] in allCharsMap)) allCharsMap[e[0]] = e;
+  });
+});
+
+// ---- Historique persistant ("à revoir") ----
+var STORAGE_KEY = 'hanziTrainerProgress_v1';
+var REVIEW_THRESHOLD = 2; // nombre d'échecs avant d'entrer dans la liste "à revoir"
+
+function loadProgress(){
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    var parsed = raw ? JSON.parse(raw) : null;
+    if(parsed && parsed.chars) return parsed;
+  } catch(e){}
+  return { chars: {} };
+}
+var progress = loadProgress();
+
+function saveProgress(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); } catch(e){}
+}
+
+function recordResult(char, ok){
+  var rec = progress.chars[char] || { failCount: 0, mastered: false, updatedAt: 0 };
+  if(!ok){
+    rec.failCount = (rec.failCount || 0) + 1;
+    rec.mastered = false; // un nouvel échec rouvre le caractère s'il avait été marqué acquis
+  }
+  rec.updatedAt = Date.now();
+  progress.chars[char] = rec;
+  saveProgress();
+  renderReviewList();
+  renderReviewTag();
+}
+
+function isInReview(char){
+  var r = progress.chars[char];
+  return !!r && !r.mastered && (r.failCount || 0) >= REVIEW_THRESHOLD;
+}
+
+function markMastered(char){
+  var r = progress.chars[char];
+  if(!r) return;
+  r.mastered = true;
+  r.updatedAt = Date.now();
+  saveProgress();
+  renderReviewList();
+  renderReviewTag();
+}
+
+function getReviewEntries(){
+  return Object.keys(progress.chars)
+    .filter(isInReview)
+    .filter(function(c){ return !!allCharsMap[c]; })
+    .sort(function(a, b){ return (progress.chars[b].failCount || 0) - (progress.chars[a].failCount || 0); })
+    .map(function(c){ return allCharsMap[c]; });
+}
+
+function renderReviewList(){
+  var wrap = document.getElementById('reviewList');
+  var btn = document.getElementById('reviewSessionBtn');
+  var entries = getReviewEntries();
+  wrap.innerHTML = '';
+  if(entries.length === 0){
+    wrap.innerHTML = '<div class="review-empty">Aucun caractère à revoir pour l\'instant 🎉</div>';
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = false;
+  entries.forEach(function(entry){
+    var char = entry[0];
+    var fails = progress.chars[char].failCount || 0;
+    var row = document.createElement('div');
+    row.className = 'review-item';
+    row.innerHTML =
+      '<span class="rc">' + char + '</span>' +
+      '<span class="ri"><span class="rp">' + entry[1] + '</span> <span class="rm">' + entry[2] + '</span></span>' +
+      '<span class="rf">' + fails + ' échec' + (fails > 1 ? 's' : '') + '</span>';
+    var okBtn = document.createElement('button');
+    okBtn.className = 'rok';
+    okBtn.textContent = '✓ Acquis';
+    okBtn.onclick = function(){ markMastered(char); };
+    row.appendChild(okBtn);
+    wrap.appendChild(row);
+  });
+}
+
+function renderReviewTag(){
+  var wrap = document.getElementById('reviewTagWrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  if(!currentChar || !isInReview(currentChar)) return;
+  var fails = progress.chars[currentChar].failCount || 0;
+  var tag = document.createElement('span');
+  tag.className = 'review-tag';
+  tag.innerHTML = '🔁 à revoir (' + fails + ')';
+  var btn = document.createElement('button');
+  btn.textContent = 'Marquer acquis';
+  btn.onclick = function(){ markMastered(currentChar); };
+  tag.appendChild(btn);
+  wrap.appendChild(tag);
+}
+
+document.getElementById('reviewSessionBtn').onclick = function(){
+  var entries = getReviewEntries();
+  if(entries.length === 0) return;
+  startSession(entries, 'À revoir');
+};
+
+var writer = null;
+var currentChar = '';
+var outlineEnabled = true;
+var target = document.getElementById('target');
+var errorMsg = document.getElementById('errorMsg');
+var quizStatus = document.getElementById('quizStatus');
+var prevBtn = document.getElementById('prevBtn');
+var nextBtn = document.getElementById('nextBtn');
+
+var session = null; // {queue:[[char,pinyin,meaning]], index, results:[{ok:bool}|null]}
+
+function shuffle(arr){
+  var a = arr.slice();
+  for(var i = a.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Donne la priorité aux caractères déjà ratés au moins une fois (et pas encore acquis)
+// pour qu'ils reviennent plus vite dans les séances suivantes, sans pour autant
+// remplacer toute la séance : au plus la moitié des places leur est réservée.
+// Pour "Mon cours" (sequential=true), les places restantes puisent dans les
+// caractères jamais encore pratiqués, dans l'ordre du livre — pour avancer
+// progressivement au lieu de piocher au hasard dans toute la liste.
+function buildSessionQueue(pool, batchSize, sequential){
+  var take = Math.min(batchSize, pool.length);
+  var priorityCap = Math.max(1, Math.ceil(take / 2));
+
+  var priority = pool.filter(function(e){
+    var r = progress.chars[e[0]];
+    return r && !r.mastered && (r.failCount || 0) >= 1;
+  });
+  var rest = pool.filter(function(e){ return priority.indexOf(e) === -1; });
+
+  var chosenPriority = shuffle(priority).slice(0, Math.min(priorityCap, take));
+  var remaining = take - chosenPriority.length;
+
+  var chosenRest;
+  if(sequential){
+    var neverAttempted = rest.filter(function(e){ return !progress.chars[e[0]]; });
+    chosenRest = neverAttempted.slice(0, remaining);
+    if(chosenRest.length < remaining){
+      // Tout le cours a déjà été vu au moins une fois : on complète avec
+      // le reste (déjà pratiqué, sans échec en cours), au hasard.
+      var alreadySeen = rest.filter(function(e){ return chosenRest.indexOf(e) === -1; });
+      chosenRest = chosenRest.concat(shuffle(alreadySeen).slice(0, remaining - chosenRest.length));
+    }
+  } else {
+    chosenRest = shuffle(rest).slice(0, remaining);
+  }
+
+  return shuffle(chosenPriority.concat(chosenRest));
+}
+
+document.getElementById('startSessionBtn').onclick = function(){
+  var levelKey = document.getElementById('levelSelect').value;
+  var batchSize = parseInt(document.getElementById('batchSelect').value, 10);
+  var pool = levelKey === 'all' ? HSK1.concat(HSK2, HSK3) : LEVELS[levelKey];
+  var sequential = levelKey === 'moncours';
+  var picked = buildSessionQueue(pool, batchSize, sequential);
+  var levelLabel = levelKey === 'all' ? 'Tous niveaux' :
+    (levelKey === 'moncours' ? 'Mon cours' : levelKey.toUpperCase().replace('HSK','HSK '));
+  startSession(picked, levelLabel);
+};
+
+function startSession(queue, levelLabel){
+  session = { queue: queue, index: 0, results: new Array(queue.length).fill(null) };
+
+  document.getElementById('summaryCard').style.display = 'none';
+  document.getElementById('placeholderCard').style.display = 'none';
+  document.getElementById('practiceCard').style.display = 'block';
+  document.getElementById('sessionArea').style.display = 'block';
+  document.getElementById('sessionLevelLabel').textContent = levelLabel;
+
+  renderCharList();
+  loadSessionChar(0);
+}
+
+// Sélection aléatoire de la visite : générée une seule fois au chargement de la page,
+// stable tant que la page n'est pas rechargée.
+var dailyList = shuffle(HSK1).slice(0, 20);
+var dailyListWrap = document.getElementById('dailyList');
+dailyList.forEach(function(entry){
+  var b = document.createElement('button');
+  b.textContent = entry[0];
+  b.title = entry[1];
+  b.disabled = true;
+  dailyListWrap.appendChild(b);
+});
+document.getElementById('startDailyBtn').onclick = function(){
+  startSession(dailyList.slice(), 'Sélection du jour');
+};
+
+function renderCharList(){
+  var wrap = document.getElementById('charList');
+  wrap.innerHTML = '';
+  session.queue.forEach(function(entry, i){
+    var b = document.createElement('button');
+    b.textContent = entry[0];
+    b.title = entry[1];
+    var cls = '';
+    if(i === session.index) cls += ' current';
+    var res = session.results[i];
+    if(res){ cls += res.ok ? ' done-ok' : ' done-retry'; }
+    b.className = cls.trim();
+    b.onclick = function(){ loadSessionChar(i); };
+    wrap.appendChild(b);
+  });
+}
+
+function loadSessionChar(idx){
+  session.index = idx;
+  updateSessionProgress();
+  updateNavButtons();
+  renderCharList();
+  quizStatus.textContent = '';
+  quizStatus.className = 'quiz-status';
+  loadChar(session.queue[idx][0]);
+  setTimeout(function(){ if(writer){ startQuiz(); } }, 300);
+}
+
+function updateSessionProgress(){
+  var total = session.queue.length;
+  var attempted = session.results.filter(function(r){ return r !== null; }).length;
+  document.getElementById('sessionCounter').textContent = (session.index + 1) + ' / ' + total;
+  document.getElementById('sessionBarFill').style.width = Math.round((attempted / total) * 100) + '%';
+}
+
+function updateNavButtons(){
+  prevBtn.disabled = session.index === 0;
+  nextBtn.disabled = session.index === session.queue.length - 1;
+}
+
+prevBtn.onclick = function(){
+  if(!session || session.index === 0) return;
+  loadSessionChar(session.index - 1);
+};
+nextBtn.onclick = function(){
+  if(!session || session.index === session.queue.length - 1) return;
+  loadSessionChar(session.index + 1);
+};
+
+document.getElementById('finishBtn').onclick = function(){
+  if(!session) return;
+  showSummary();
+};
+
+function showSummary(){
+  var body = document.getElementById('summaryBody');
+  body.innerHTML = '';
+  session.queue.forEach(function(entry, i){
+    var res = session.results[i];
+    var tag = res === null
+      ? '<span class="tag pending">Non tenté</span>'
+      : '<span class="tag ' + (res.ok ? 'good' : 'retry') + '">' + (res.ok ? 'Réussi du 1er coup' : 'À revoir') + '</span>';
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="font-size:18px">' + entry[0] + '</td>' +
+      '<td>' + entry[1] + '</td>' +
+      '<td>' + tag + '</td>';
+    body.appendChild(tr);
+  });
+  document.getElementById('summaryCard').style.display = 'block';
+  document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+document.getElementById('closeSummaryBtn').onclick = function(){
+  document.getElementById('summaryCard').style.display = 'none';
+};
+
+function loadChar(char){
+  errorMsg.style.display = 'none';
+  quizStatus.textContent = '';
+  quizStatus.className = 'quiz-status';
+  target.innerHTML = '';
+
+  if(!char){ return; }
+
+  currentChar = char;
+  document.getElementById('pinyinLabel').textContent = pinyinMap[char] || char;
+  renderReviewTag();
+
+  if(typeof HanziWriter === 'undefined'){
+    errorMsg.textContent = 'La bibliothèque de tracé n\'a pas pu se charger. Vérifie ta connexion internet et recharge la page.';
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  try {
+    writer = HanziWriter.create('target', char, {
+      width: 280,
+      height: 280,
+      padding: 12,
+      strokeColor: '#1f1f1f',
+      radicalColor: '#b5472e',
+      strokeAnimationSpeed: 1,
+      delayBetweenStrokes: 200,
+      showOutline: outlineEnabled,
+      outlineColor: '#c9c6ba',
+      drawingWidth: 24,
+      strokeHighlightSpeed: 1,
+      highlightColor: '#f4c98f',
+      onLoadCharDataError: function(){
+        errorMsg.textContent = 'Ce caractère n\'a pas été trouvé dans la base de données.';
+        errorMsg.style.display = 'block';
+      },
+      onLoadCharDataSuccess: function(charData){
+        document.getElementById('strokeCount').textContent = charData.strokes.length + ' traits';
+      }
+    });
+  } catch(e){
+    errorMsg.textContent = 'Impossible de charger ce caractère.';
+    errorMsg.style.display = 'block';
+  }
+}
+
+document.getElementById('animateBtn').onclick = function(){
+  if(!writer) return;
+  writer.showCharacter();
+  writer.animateCharacter();
+};
+
+function startQuiz(){
+  var hadMistake = false;
+  var mistakeCounts = {};
+  writer.hideCharacter();
+  quizStatus.textContent = 'Dessine le caractère trait par trait dans la grille';
+  quizStatus.className = 'quiz-status';
+  writer.quiz({
+    onCorrectStroke: function(data){
+      quizStatus.textContent = 'Trait ' + data.strokeNum + ' sur ' + data.totalStrokes + ' correct';
+      quizStatus.className = 'quiz-status ok';
+    },
+    onMistake: function(data){
+      hadMistake = true;
+      var n = data.strokeNum;
+      mistakeCounts[n] = (mistakeCounts[n] || 0) + 1;
+
+      if(mistakeCounts[n] === 1){
+        quizStatus.textContent = 'Pas tout à fait — vérifie le sens et le point de départ du trait';
+      } else {
+        quizStatus.textContent = 'Regarde le trait qui s\'allume : compare sa direction avec ton geste';
+        writer.highlightStroke(n, { strokeColor: '#f4c98f', speed: 2 });
+      }
+      quizStatus.className = 'quiz-status err';
+    },
+    onComplete: function(){
+      quizStatus.textContent = 'Caractère terminé';
+      quizStatus.className = 'quiz-status ok';
+      if(session){
+        session.results[session.index] = { ok: !hadMistake };
+        renderCharList();
+        updateSessionProgress();
+      }
+      recordResult(currentChar, !hadMistake);
+    }
+  });
+}
+
+document.getElementById('quizBtn').onclick = function(){
+  if(!writer) return;
+  startQuiz();
+};
+
+var chineseVoice = null;
+function pickChineseVoice(){
+  if(!('speechSynthesis' in window)) return;
+  var voices = speechSynthesis.getVoices();
+  chineseVoice = voices.find(function(v){ return v.lang === 'zh-CN'; }) ||
+                 voices.find(function(v){ return v.lang && v.lang.indexOf('zh') === 0; }) ||
+                 null;
+}
+if('speechSynthesis' in window){
+  pickChineseVoice();
+  speechSynthesis.onvoiceschanged = pickChineseVoice;
+}
+
+document.getElementById('listenBtn').onclick = function(){
+  if(!currentChar) return;
+  if(!('speechSynthesis' in window)){
+    quizStatus.textContent = 'La lecture vocale n\'est pas prise en charge par ce navigateur.';
+    quizStatus.className = 'quiz-status err';
+    return;
+  }
+  pickChineseVoice();
+  var utter = new SpeechSynthesisUtterance(currentChar);
+  utter.lang = 'zh-CN';
+  if(chineseVoice) utter.voice = chineseVoice;
+  utter.rate = 0.85;
+  utter.onerror = function(){
+    quizStatus.textContent = 'Aucune voix chinoise disponible sur cet appareil.';
+    quizStatus.className = 'quiz-status err';
+  };
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utter);
+};
+
+document.getElementById('outlineToggle').onchange = function(){
+  outlineEnabled = this.checked;
+  if(writer){
+    if(outlineEnabled){ writer.showOutline(); }
+    else { writer.hideOutline(); }
+  }
+};
+
+// ---- Sauvegarde entre appareils (export / import manuel) ----
+var backupStatus = document.getElementById('backupStatus');
+
+function setBackupStatus(msg, kind){
+  backupStatus.textContent = msg;
+  backupStatus.className = 'backup-status' + (kind ? ' ' + kind : '');
+}
+
+document.getElementById('exportBtn').onclick = function(){
+  var data = JSON.stringify(progress, null, 2);
+  var blob = new Blob([data], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  var today = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = 'hanzi-progress-' + today + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  setBackupStatus('Fichier exporté. Transfère-le sur ton autre appareil puis importe-le là-bas.', 'ok');
+};
+
+document.getElementById('importBtn').onclick = function(){
+  document.getElementById('importFile').click();
+};
+
+document.getElementById('importFile').onchange = function(e){
+  var file = e.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    var imported;
+    try {
+      imported = JSON.parse(reader.result);
+    } catch(err){
+      setBackupStatus('Fichier invalide — impossible de le lire.', 'err');
+      return;
+    }
+    if(!imported || typeof imported.chars !== 'object'){
+      setBackupStatus('Ce fichier ne contient pas de données reconnues.', 'err');
+      return;
+    }
+    var updated = 0, added = 0;
+    Object.keys(imported.chars).forEach(function(char){
+      var incoming = imported.chars[char];
+      var existing = progress.chars[char];
+      if(!existing){
+        progress.chars[char] = incoming;
+        added++;
+      } else if((incoming.updatedAt || 0) > (existing.updatedAt || 0)){
+        progress.chars[char] = incoming;
+        updated++;
+      }
+    });
+    saveProgress();
+    renderReviewList();
+    renderReviewTag();
+    setBackupStatus(added + ' caractère(s) ajouté(s), ' + updated + ' mis à jour depuis l\'import.', 'ok');
+    e.target.value = '';
+  };
+  reader.onerror = function(){
+    setBackupStatus('Impossible de lire ce fichier.', 'err');
+  };
+  reader.readAsText(file);
+};
+
+renderReviewList();
+
+// Enregistre le service worker pour un fonctionnement hors connexion
+// après le premier chargement complet de la page.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(err){
+      console.warn('Service worker non enregistré :', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
