@@ -224,7 +224,9 @@
     <h2>Séance d'entraînement</h2>
     <div class="session-row">
       <select id="levelSelect">
-        <option value="moncours" selected>Mon cours (80 caractères)</option>
+        <option value="moncours1" selected>Mon cours 1 (1-80)</option>
+        <option value="moncours2">Mon cours 2 (81-130)</option>
+        <option value="moncours3">Mon cours 3 (131-177)</option>
         <option value="hsk1">HSK 1 — débutant</option>
         <option value="hsk2">HSK 2</option>
         <option value="hsk3">HSK 3</option>
@@ -487,6 +489,15 @@ var MON_COURS = [
   ['开','kāi','to open, to start','打开','dǎkāi','to open, to turn on'],['坐','zuò','to sit, to ride','请坐','qǐngzuò','please have a seat'],
   ['住','zhù','to live, to stay','住在','zhù zài','to live in'],['习','xí','to practice','学习','xuéxí','to study, to learn'],
   ['工','gōng','work','人工','réngōng','artificial'],['作','zuò','to do','工作','gōngzuò','to work'],
+  ['雨','yǔ','rain','下雨','xiàyǔ','to rain'],['爱','ài','love, to love','爱上','ài shàng','to fall in love with'],
+  ['喜','xǐ','joy, to like','恭喜','gōngxǐ','congratulations'],['欢','huān','joyous','喜欢','xǐhuān','like, love'],
+  ['想','xiǎng','to think, to want','想法','xiǎngfǎ','thought, opinion'],['认','rèn','to recognize, to know','认为','rènwéi','to consider'],
+  ['识','shí','knowledge','认识','rènshi','to know'],['会','huì','can','机会','jīhuì','opportunity'],
+  ['能','néng','be able to','可能','kěnéng','maybe, might'],['好','hǎo','good','你好','nǐhǎo','hello'],
+  ['大','dà','big','大小','dàxiǎo','size'],['冷','lěng','cold','冷气','lěngqì','air conditioning'],
+  ['热','rè','hot','热点','rèdiǎn','hot spot'],['高','gāo','high, tall','高中','gāozhōng','high school'],
+  ['兴','xìng','to flourish','高兴','gāoxìng','happy'],['漂','piào, piǎo, piāo','pretty, to bleach, to float','漂白','piǎobái','to bleach, to whiten'],
+  ['亮','liàng','bright','漂亮','piàoliang','pretty']
 ];
 
 var SENTENCES = {
@@ -650,9 +661,31 @@ var SENTENCES = {
   '习': [['我每天学习汉语。','wǒ měi tiān xué xí hàn yǔ。','J\'étudie le chinois tous les jours.'],['这是他的习惯。','zhè shì tā de xí guàn。','C\'est son habitude.']],
   '工': [['他在银行工作。','tā zài yín háng gōng zuò。','Il travaille dans une banque.'],['工作很忙。','gōng zuò hěn máng。','Le travail est très chargé.']],
   '作': [['我在做作业。','wǒ zài zuò zuò yè。','Je fais mes devoirs.'],['他的工作很有意思。','tā de gōng zuò hěn yǒu yì si。','Son travail est très intéressant.']],
+  '雨': [['今天下雨了。','jīn tiān xià yǔ le。','Il pleut aujourd\'hui.'],['我喜欢雨天。','wǒ xǐ huān yǔ tiān。','J\'aime les jours de pluie.']],
+  '爱': [['我爱我的家人。','wǒ ài wǒ de jiā rén。','J\'aime ma famille.'],['他很爱看书。','tā hěn ài kàn shū。','Il adore lire.']],
+  '喜': [['我很喜欢中国菜。','wǒ hěn xǐ huān zhōng guó cài。','J\'aime beaucoup la cuisine chinoise.'],['这是喜事。','zhè shì xǐ shì。','C\'est une bonne nouvelle.']],
+  '欢': [['欢迎你来我家。','huān yíng nǐ lái wǒ jiā。','Bienvenue chez moi.'],['我喜欢音乐。','wǒ xǐ huān yīn yuè。','J\'aime la musique.']],
+  '想': [['我想喝茶。','wǒ xiǎng hē chá。','Je veux boire du thé.'],['你在想什么？','nǐ zài xiǎng shén me？','À quoi penses-tu ?']],
+  '认': [['我认识他。','wǒ rèn shí tā。','Je le connais.'],['我不认识这个字。','wǒ bù rèn shí zhè ge zì。','Je ne connais pas ce caractère.']],
+  '识': [['你认识她吗？','nǐ rèn shí tā ma？','La connais-tu ?'],['我们认识很久了。','wǒ men rèn shí hěn jiǔ le。','Nous nous connaissons depuis longtemps.']],
+  '会': [['你会游泳吗？','nǐ huì yóu yǒng ma？','Sais-tu nager ?'],['明天有一个会。','míng tiān yǒu yī gè huì。','Il y a une réunion demain.']],
+  '能': [['你能帮我吗？','nǐ néng bāng wǒ ma？','Peux-tu m\'aider ?'],['我不能去。','wǒ bù néng qù。','Je ne peux pas y aller.']],
+  '好': [['这个主意很好。','zhè ge zhǔ yì hěn hǎo。','C\'est une très bonne idée.'],['他人很好。','tā rén hěn hǎo。','Il est très gentil.']],
+  '大': [['我家很大。','wǒ jiā hěn dà。','Ma maison est très grande.'],['他比我大三岁。','tā bǐ wǒ dà sān suì。','Il a trois ans de plus que moi.']],
+  '冷': [['今天很冷。','jīn tiān hěn lěng。','Il fait très froid aujourd\'hui.'],['我不喜欢冷天。','wǒ bù xǐ huān lěng tiān。','Je n\'aime pas le temps froid.']],
+  '热': [['这杯茶很热。','zhè bēi chá hěn rè。','Ce thé est très chaud.'],['夏天很热。','xià tiān hěn rè。','L\'été est très chaud.']],
+  '高': [['这栋楼很高。','zhè dòng lóu hěn gāo。','Ce bâtiment est très haut.'],['我很高兴。','wǒ hěn gāo xìng。','Je suis très content.']],
+  '兴': [['见到你我很高兴。','jiàn dào nǐ wǒ hěn gāo xìng。','Je suis content de te voir.'],['他今天很高兴。','tā jīn tiān hěn gāo xìng。','Il est très content aujourd\'hui.']],
+  '漂': [['这条裙子很漂亮。','zhè tiáo qún zi hěn piào liàng。','Cette robe est très jolie.'],['她笑得很漂亮。','tā xiào de hěn piào liàng。','Son sourire est très joli.']],
+  '亮': [['这个房间很亮。','zhè ge fáng jiān hěn liàng。','Cette pièce est très lumineuse.'],['月亮很漂亮。','yuè liàng hěn piào liàng。','La lune est très belle.']],
 };
 
-var LEVELS = { hsk1: HSK1, hsk2: HSK2, hsk3: HSK3, moncours: MON_COURS };
+// "Mon cours" découpé en trois lots sélectionnables séparément dans le menu,
+// dans l'ordre du livre : lot 1 (1-80), lot 2 (81-130), lot 3 (131-fin).
+var MON_COURS_1 = MON_COURS.slice(0, 80);
+var MON_COURS_2 = MON_COURS.slice(80, 130);
+var MON_COURS_3 = MON_COURS.slice(130);
+var LEVELS = { hsk1: HSK1, hsk2: HSK2, hsk3: HSK3, moncours1: MON_COURS_1, moncours2: MON_COURS_2, moncours3: MON_COURS_3 };
 var pinyinMap = {};
 var allCharsMap = {};
 [HSK1, HSK2, HSK3, MON_COURS].forEach(function(list){
@@ -1043,14 +1076,16 @@ function buildSessionQueue(pool, batchSize, sequential){
   return shuffle(chosenPriority.concat(chosenRest));
 }
 
+var MONCOURS_LABELS = { moncours1: 'Mon cours 1', moncours2: 'Mon cours 2', moncours3: 'Mon cours 3' };
+
 document.getElementById('startSessionBtn').onclick = function(){
   var levelKey = document.getElementById('levelSelect').value;
   var batchSize = parseInt(document.getElementById('batchSelect').value, 10);
   var pool = levelKey === 'all' ? HSK1.concat(HSK2, HSK3) : LEVELS[levelKey];
-  var sequential = levelKey === 'moncours';
+  var sequential = levelKey.indexOf('moncours') === 0;
   var picked = buildSessionQueue(pool, batchSize, sequential);
   var levelLabel = levelKey === 'all' ? 'Tous niveaux' :
-    (levelKey === 'moncours' ? 'Mon cours' : levelKey.toUpperCase().replace('HSK','HSK '));
+    (MONCOURS_LABELS[levelKey] || levelKey.toUpperCase().replace('HSK','HSK '));
   startSession(picked, levelLabel);
 };
 
