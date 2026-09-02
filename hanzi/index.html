@@ -251,15 +251,6 @@
     </div>
   </div>
 
-  <div class="card" id="reviewCard">
-    <h2>À revoir</h2>
-    <p style="font-size:13px; color:var(--muted); margin:0 0 10px">Caractères ratés plusieurs fois. Ils restent ici tant que tu ne les marques pas comme acquis.</p>
-    <div class="review-list" id="reviewList"></div>
-    <div class="review-actions">
-      <button id="reviewSessionBtn" disabled>Réviser cette liste</button>
-    </div>
-  </div>
-
   <div class="card summary" id="summaryCard">
     <h2>Récapitulatif de la séance</h2>
     <p style="font-size:13px; color:var(--muted); margin:0">Résultats des caractères de cette séance.</p>
@@ -307,6 +298,15 @@
       <div id="sentencesList"></div>
     </div>
   </div>
+
+  <details class="backup-footer">
+    <summary id="reviewSummary">À revoir</summary>
+    <p>Caractères ratés plusieurs fois. Ils restent ici tant que tu ne les marques pas comme acquis.</p>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-actions">
+      <button id="reviewSessionBtn" disabled>Réviser cette liste</button>
+    </div>
+  </details>
 
   <details class="backup-footer">
     <summary>Caractères définitivement acquis</summary>
@@ -554,17 +554,32 @@ function saveProgress(){
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(progress)); } catch(e){}
 }
 
+var AUTO_ACQUIRE_STREAK = 3; // nombre de réussites d'affilée (sans faute) avant passage automatique en "définitivement acquis"
+
 function recordResult(char, ok){
-  var rec = progress.chars[char] || { failCount: 0, mastered: false, updatedAt: 0 };
-  if(!ok){
+  var rec = progress.chars[char] || { failCount: 0, mastered: false, acquired: false, okStreak: 0, updatedAt: 0 };
+  var justAutoAcquired = false;
+  if(ok){
+    rec.okStreak = (rec.okStreak || 0) + 1;
+    if(!rec.acquired && rec.okStreak >= AUTO_ACQUIRE_STREAK){
+      rec.acquired = true;
+      justAutoAcquired = true;
+    }
+  } else {
+    rec.okStreak = 0;
     rec.failCount = (rec.failCount || 0) + 1;
-    rec.mastered = false; // un nouvel échec rouvre le caractère s'il avait été marqué acquis
+    rec.mastered = false; // un nouvel échec sort le caractère de la liste "retiré de la révision"
   }
   rec.updatedAt = Date.now();
   progress.chars[char] = rec;
   saveProgress();
   renderReviewList();
   renderReviewTag();
+  if(justAutoAcquired){
+    renderAcquiredTag();
+    renderAcquiredList();
+  }
+  return justAutoAcquired;
 }
 
 function isInReview(char){
@@ -581,8 +596,13 @@ function isAcquired(char){
 // rotation (nouveaux, révision, rafraîchissement aléatoire) jusqu'à ce
 // que ce statut soit levé manuellement.
 function toggleAcquired(char){
-  var rec = progress.chars[char] || { failCount: 0, mastered: false, acquired: false, updatedAt: 0 };
+  var rec = progress.chars[char] || { failCount: 0, mastered: false, acquired: false, okStreak: 0, updatedAt: 0 };
   rec.acquired = !rec.acquired;
+  if(!rec.acquired){
+    // Réintégration : on repart sur une série propre, sinon la prochaine
+    // réussite le repasserait aussitôt en acquis automatiquement.
+    rec.okStreak = 0;
+  }
   rec.updatedAt = Date.now();
   progress.chars[char] = rec;
   saveProgress();
@@ -647,7 +667,9 @@ function renderAcquiredList(){
 function renderReviewList(){
   var wrap = document.getElementById('reviewList');
   var btn = document.getElementById('reviewSessionBtn');
+  var summary = document.getElementById('reviewSummary');
   var entries = getReviewEntries();
+  if(summary) summary.textContent = 'À revoir' + (entries.length > 0 ? ' (' + entries.length + ')' : '');
   wrap.innerHTML = '';
   if(entries.length === 0){
     wrap.innerHTML = '<div class="review-empty">Aucun caractère à revoir pour l\'instant 🎉</div>';
@@ -698,6 +720,8 @@ function renderAcquiredTag(){
   wrap.innerHTML = '';
   if(!currentChar) return;
   var acquired = isAcquired(currentChar);
+  var rec = progress.chars[currentChar];
+  var streak = rec ? (rec.okStreak || 0) : 0;
   var tag = document.createElement('span');
   tag.className = 'acquired-tag' + (acquired ? ' is-acquired' : '');
   var btn = document.createElement('button');
@@ -705,7 +729,8 @@ function renderAcquiredTag(){
     tag.innerHTML = '🔒 Définitivement acquis ';
     btn.textContent = 'Annuler';
   } else {
-    btn.textContent = '🔓 Marquer comme définitivement acquis';
+    var hint = streak > 0 ? ' (' + streak + '/' + AUTO_ACQUIRE_STREAK + ' sans faute)' : '';
+    btn.textContent = '🔓 Marquer comme définitivement acquis' + hint;
   }
   btn.onclick = function(){ toggleAcquired(currentChar); };
   tag.appendChild(btn);
@@ -1127,7 +1152,7 @@ function startQuiz(){
       quizStatus.className = 'quiz-status err';
     },
     onComplete: function(){
-      recordResult(thisChar, !hadMistake);
+      var justAcquired = recordResult(thisChar, !hadMistake);
       // Seul le résultat du caractère principal compte pour le suivi de la séance
       // (le point de couleur dans la liste, la barre de progression).
       if(!thisItem.isCompoundPart && session){
@@ -1135,7 +1160,13 @@ function startQuiz(){
         renderCharList();
         updateSessionProgress();
       }
-      if(subIndex < subQueue.length - 1){
+      if(justAcquired){
+        quizStatus.textContent = '🔒 ' + thisChar + ' réussi 3 fois d\'affilée sans faute — passé en "définitivement acquis" !';
+        quizStatus.className = 'quiz-status ok';
+        if(subIndex < subQueue.length - 1){
+          setTimeout(function(){ loadSubChar(subIndex + 1); }, 1400);
+        }
+      } else if(subIndex < subQueue.length - 1){
         quizStatus.textContent = 'Caractère terminé — au suivant du mot...';
         quizStatus.className = 'quiz-status ok';
         setTimeout(function(){ loadSubChar(subIndex + 1); }, 800);
