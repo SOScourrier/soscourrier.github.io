@@ -1079,7 +1079,11 @@ function loadChar(char, entry){
   if(!char){ return; }
 
   currentChar = char;
-  document.getElementById('pinyinLabel').textContent = pinyinMap[char] || char;
+  // Priorité à l'entrée réellement pratiquée (ex: "Mon cours") plutôt qu'au
+  // premier match global, qui pourrait afficher la version d'une autre
+  // liste (ex: HSK) pour un caractère présent dans les deux.
+  var labelText = (entry && entry[1] && entry[2]) ? (entry[1] + ' — ' + entry[2]) : (pinyinMap[char] || char);
+  document.getElementById('pinyinLabel').textContent = labelText;
   renderReviewTag();
   renderAcquiredTag();
   renderExample(char, entry);
