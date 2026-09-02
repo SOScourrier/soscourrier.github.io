@@ -1,7 +1,7 @@
 // Service worker : met l'outil en cache pour qu'il fonctionne hors connexion
 // après le premier chargement. Bump CACHE_NAME à chaque mise à jour du site
 // pour forcer le rechargement des fichiers.
-var CACHE_NAME = 'hanzi-trainer-v4';
+var CACHE_NAME = 'hanzi-trainer-v6';
 var ASSETS = [
   './',
   './index.html',
