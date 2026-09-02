@@ -71,9 +71,26 @@
     text-align:center; color:var(--muted); font-size:13px; padding:20px 10px;
   }
 
-  .char-info{display:flex; align-items:center; gap:8px; margin-bottom:14px}
+  .char-info{display:flex; align-items:center; gap:8px; margin-bottom:14px; flex-wrap:wrap}
   .char-info .pinyin{font-size:16px; color:var(--accent); font-weight:600}
   .char-info .strokes-count{font-size:12px; color:var(--muted); margin-left:auto}
+  .example-line{
+    font-size:13px; color:var(--muted); margin:-4px 0 10px; padding:0 2px;
+  }
+  .example-line .ex-char{ color:var(--ink); font-weight:600; font-size:15px }
+  .example-line .ex-pinyin{ color:var(--accent) }
+  .sentences-box{
+    margin-top:16px; padding-top:14px; border-top:1px solid var(--line);
+  }
+  .sentences-title{ font-size:12px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.03em }
+  .sentence-row{
+    display:flex; align-items:flex-start; gap:8px; padding:8px 0;
+  }
+  .sentence-row + .sentence-row{ border-top:1px dashed var(--line) }
+  .sentence-text{ flex:1; min-width:0 }
+  .sentence-hanzi{ font-size:16px; color:var(--ink) }
+  .sentence-pinyin{ font-size:12px; color:var(--accent); margin-top:2px }
+  .sentence-fr{ font-size:12px; color:var(--muted); margin-top:2px }
   .listen-icon{
     border:none; background:transparent; cursor:pointer; font-size:15px;
     padding:2px 4px; line-height:1; border-radius:6px; opacity:0.75;
@@ -168,6 +185,21 @@
   .backup-status{ font-size:12px; color:var(--muted); margin-top:8px; min-height:16px }
   .backup-status.ok{ color:var(--ok) }
   .backup-status.err{ color:var(--accent) }
+  .backup-footer{
+    margin:28px 0 12px; padding-top:12px; border-top:1px solid var(--line);
+  }
+  .backup-footer summary{
+    font-size:12px; color:var(--muted); cursor:pointer; list-style:none; user-select:none;
+  }
+  .backup-footer summary::-webkit-details-marker{ display:none }
+  .backup-footer summary::before{ content:"⚙ "; opacity:0.7 }
+  .backup-footer summary:hover{ color:var(--ink) }
+  .backup-footer p{ font-size:12px; color:var(--muted); margin:10px 0 }
+  .backup-footer .backup-row button{
+    padding:6px 10px; font-size:12px; border:1px solid var(--line); border-radius:6px;
+    background:var(--card); color:var(--ink); cursor:pointer;
+  }
+  .backup-footer .backup-row button:hover{ border-color:var(--accent); color:var(--accent) }
 </style>
 </head>
 <body>
@@ -193,6 +225,10 @@
       </select>
       <button id="startSessionBtn">Générer une séance</button>
     </div>
+    <label class="outline-toggle" for="compoundToggle" style="margin-top:10px">
+      <input type="checkbox" id="compoundToggle">
+      Inclure aussi les mots composés (si disponibles pour "Mon cours")
+    </label>
 
     <div id="sessionArea" style="display:none">
       <div class="session-progress">
@@ -212,17 +248,6 @@
     <div class="review-actions">
       <button id="reviewSessionBtn" disabled>Réviser cette liste</button>
     </div>
-  </div>
-
-  <div class="card">
-    <h2>Sauvegarde entre appareils</h2>
-    <p style="font-size:13px; color:var(--muted); margin:0 0 10px">Ton historique reste sur cet appareil (mémoire du navigateur). Pour le retrouver sur ton autre ordinateur ou ton natel, exporte-le ici puis importe-le là-bas.</p>
-    <div class="backup-row">
-      <button id="exportBtn">⬇ Exporter (.json)</button>
-      <button id="importBtn">⬆ Importer (.json)</button>
-      <input type="file" id="importFile" accept="application/json" style="display:none">
-    </div>
-    <div class="backup-status" id="backupStatus"></div>
   </div>
 
   <div class="card summary" id="summaryCard">
@@ -248,6 +273,8 @@
     <div class="char-info">
       <span class="pinyin" id="pinyinLabel">—</span>
       <button id="listenBtn" class="listen-icon" title="Écouter la prononciation" aria-label="Écouter la prononciation">🔊</button>
+      <select id="voiceSelect" title="Choisir la voix chinoise" style="font-size:12px; max-width:150px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); padding:3px 4px;"></select>
+      <button id="testVoiceBtn" title="Tester cette voix" style="font-size:11px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--muted); padding:3px 8px; cursor:pointer;">Tester</button>
       <span id="reviewTagWrap"></span>
       <label class="outline-toggle" for="outlineToggle">
         <input type="checkbox" id="outlineToggle" checked>
@@ -255,6 +282,7 @@
       </label>
       <span class="strokes-count" id="strokeCount"></span>
     </div>
+    <div class="example-line" id="exampleLine" style="display:none"></div>
     <div id="target"></div>
     <div class="controls">
       <button id="prevBtn">◀ Précédent</button>
@@ -263,7 +291,22 @@
       <button id="nextBtn">Suivant ▶</button>
     </div>
     <div class="quiz-status" id="quizStatus"></div>
+    <div class="sentences-box" id="sentencesBox" style="display:none">
+      <div class="sentences-title">Phrases d'exemple</div>
+      <div id="sentencesList"></div>
+    </div>
   </div>
+
+  <details class="backup-footer">
+    <summary>Sauvegarde entre appareils</summary>
+    <p>Ton historique reste sur cet appareil (mémoire du navigateur). Pour le retrouver sur ton autre ordinateur ou ton natel, exporte-le ici puis importe-le là-bas.</p>
+    <div class="backup-row">
+      <button id="exportBtn">⬇ Exporter (.json)</button>
+      <button id="importBtn">⬆ Importer (.json)</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+    </div>
+    <div class="backup-status" id="backupStatus"></div>
+  </details>
 </div>
 
 <script>
@@ -339,34 +382,130 @@ var HSK3 = [
 ];
 
 var MON_COURS = [
-  ['我','wǒ','I, me'],['你','nǐ','you'],['他','tā','he, him'],
-  ['她','tā','she, her'],['们','men','plural maker for people'],['这','zhè','here, this'],
-  ['那','nà','there, that'],['哪','nǎ','where'],['儿','ér','son'],
-  ['谁','shéi, shuí','who'],['什','shén','what'],['么','me','interrogative final particle'],
-  ['多','duō','many'],['少','shǎo','few, little'],['几','jǐ','a few, how many'],
-  ['怎','zěn','how'],['样','yàng','manner, way'],['一','yī','one'],
-  ['二','èr','two'],['三','sān','three'],['四','sì','four'],
-  ['五','wǔ','five'],['六','liù','six'],['七','qī','seven'],
-  ['八','bā','eight'],['九','jiǔ','nine'],['十','shí','ten'],
-  ['零','líng','zero'],['个','gè','general counter'],['岁','suì','year'],
-  ['本','běn','counter for books'],['些','xiē','some'],['块','kuài','piece'],
-  ['不','bù','not'],['没','méi','not'],['很','hěn','quite, very'],
-  ['太','tài','too'],['都','dōu','both, all'],['和','hé','and'],
-  ['在','zài','in, on, at'],['的','de','possessive particle'],['了','le','modal particle, completed action marker'],
-  ['吗','ma','question particle'],['呢','ne','sentence final particle for follow-up questions'],['喂','wèi','hello'],
-  ['家','jiā','home'],['学','xué','to learn/study'],['校','xiào','school'],
-  ['饭','fàn','meal, (cooked) rice'],['店','diàn','shop, store'],['商','shāng','business, commerce'],
-  ['医','yī','medicine, medical'],['院','yuàn','institution, courtyard'],['火','huǒ','fire'],
-  ['车','chē','car, vehicle'],['站','zhàn','station'],['中','zhōng','middle'],
-  ['国','guó','country'],['北','běi','north'],['京','jīng','capital'],
-  ['上','shàng','up'],['下','xià','down'],['前','qián','front, forward'],
-  ['面','miàn','side, surface'],['后','hòu','behind, back'],['里','lǐ','inside'],
-  ['今','jīn','today, present'],['天','tiān','sky, day'],['明','míng','bright, next'],
-  ['昨','zuó','yesterday'],['午','wǔ','noon'],['年','nián','year'],
-  ['月','yuè','month'],['日','rì','day'],['星','xīng','star'],
-  ['期','qī','period of time'],['点','diǎn','dot, spot'],['钟','zhōng','clock, oˈclock'],
-  ['分','fēn','to divide'],['现','xiàn','present, to appear']
+  ['我','wǒ','I, me','我们','wǒmen','we, us'],['你','nǐ','you','你们','nǐmen','you (plural)'],
+  ['他','tā','he, him','他们','tāmen','they'],['她','tā','she, her','她们','tāmen','they (females)'],
+  ['们','men','plural maker for people','人们','rénmen','people'],['这','zhè','here, this','这儿','zhèr','here'],
+  ['那','nà','there, that','那儿','nàr','there'],['哪','nǎ','where','哪儿','nǎr','where'],
+  ['儿','ér','son','那儿','nàr','there'],['谁','shéi, shuí','who','谁的','shéi de, shuí de','whose'],
+  ['什','shén','what','什么','shénme','what'],['么','me','interrogative final particle','为什么','wèishénme','why'],
+  ['多','duō','many','多少','duōshǎo','how many, much'],['少','shǎo','few, little','不少','bù shǎo','not few, many'],
+  ['几','jǐ','a few, how many','几岁','jǐ suì','how old (to children)'],['怎','zěn','how','怎么','zěnme','how'],
+  ['样','yàng','manner, way','怎么样','zěnmeyàng','how about, how'],['一','yī','one','万一','wànyī','just in case'],
+  ['二','èr','two','第二','dì èr','second'],['三','sān','three','三十','sānshí','thirty'],
+  ['四','sì','four','四岁','sì suì','four-year-old'],['五','wǔ','five','十五','shí wǔ','fifteen'],
+  ['六','liù','six','六月','liù yuè','June'],['七','qī','seven','七点','qī diǎn','seven oˈclock'],
+  ['八','bā','eight','八年','bā nián','eight years'],['九','jiǔ','nine','九百','jiǔ bǎi','nine hundred'],
+  ['十','shí','ten','十一','shíyī','eleven'],['零','líng','zero','零食','língshí','snack'],
+  ['个','gè','general counter','这个','zhège','this one'],['岁','suì','year','岁月','suìyuè','years'],
+  ['本','běn','counter for books','日本','Rìběn','Japan'],['些','xiē','some','这些','zhèxiē','these'],
+  ['块','kuài','piece','一块','yí kuài','one block/piece, together'],['不','bù','not','不要','búyào','donˈt, donˈˈt need/want'],
+  ['没','méi','not','没有','méiyǒu','to not have'],['很','hěn','quite, very','很好','hěn hǎo','very good'],
+  ['太','tài','too','太大','tài dà','too big'],['都','dōu','both, all','都好','dōu hǎo','both, all are good'],
+  ['和','hé','and','和平','hépíng','peace'],['在','zài','in, on, at','在线','zàixiàn','online'],
+  ['的','de','possessive particle','我的','wǒ de','my, mine'],['了','le','modal particle, completed action marker','好了','hǎole','all right, all done'],
+  ['吗','ma','question particle','是吗？','Shì ma?','Is it?'],['呢','ne','sentence final particle for follow-up questions','你呢？','Nǐ ne?','How about you?'],
+  ['喂','wèi','hello','喂？','Wèi?','Hello? (on the phone)'],['家','jiā','home','大家','dàjiā','everyone'],
+  ['学','xué','to learn/study','学习','xuéxí','to learn, to study'],['校','xiào','school','学校','xuéxiào','school'],
+  ['饭','fàn','meal, (cooked) rice','吃饭','chīfàn','to eat (a meal)'],['店','diàn','shop, store','饭店','fàndiàn','restaurant, hotel'],
+  ['商','shāng','business, commerce','商店','shāngdiàn','store'],['医','yī','medicine, medical','医学','yīxué','medicine, medical science'],
+  ['院','yuàn','institution, courtyard','医院','yīyuàn','hospital'],['火','huǒ','fire','火车票','huǒ chē piào','train ticket'],
+  ['车','chē','car, vehicle','火车','huǒchē','train'],['站','zhàn','station','火车站','huǒchēzhàn','train station'],
+  ['中','zhōng','middle','中心','zhōngxīn','center'],['国','guó','country','中国','Zhōngguó','China'],
+  ['北','běi','north','台北','Táiběi','Taipei'],['京','jīng','capital','北京','Běijīng','Beijing'],
+  ['上','shàng','up','上海','Shànghǎi','Shanghai'],['下','xià','down','下车','xiàchē','get off/out of (a vehicle)'],
+  ['前','qián','front, forward','日前','rìqián','a few days ago'],['面','miàn','side, surface','前面','qiánmiàn','front'],
+  ['后','hòu','behind, back','后面','hòumiàn','behind'],['里','lǐ','inside','这里','zhèlǐ','here'],
+  ['今','jīn','today, present','今后','jīnhòu','hereafter, for now on'],['天','tiān','sky, day','今天','jīntiān','today'],
+  ['明','míng','bright, next','明天','míngtiān','tomorrow'],['昨','zuó','yesterday','昨天','zuótiān','yesterday'],
+  ['午','wǔ','noon','下午','xiàwǔ','afternoon'],['年','nián','year','今年','jīnnián','this year'],
+  ['月','yuè','month','二月','èryuè','February'],['日','rì','day','日期','rìqī','date'],
+  ['星','xīng','star','明星','míngxīng','celebrity, star'],['期','qī','period of time','星期','xīngqī','week'],
+  ['点','diǎn','dot, spot','雨点','yǔdiǎn','raindrop'],['钟','zhōng','clock, oˈclock','点钟','diǎn zhōng','oˈclock'],
+  ['分','fēn','to divide','分钟','fēnzhōng','minute'],['现','xiàn','present, to appear','现在','xiànzài','now'],
 ];
+
+var SENTENCES = {
+  '我': [['我是学生。','wǒ shì xué shēng。','Je suis étudiant.'],['我喜欢茶。','wǒ xǐ huān chá。','J\'aime le thé.']],
+  '你': [['你好吗？','nǐ hǎo ma？','Comment vas-tu ?'],['你是老师吗？','nǐ shì lǎo shī ma？','Es-tu professeur ?']],
+  '他': [['他是我朋友。','tā shì wǒ péng yǒu。','Il est mon ami.'],['他很高。','tā hěn gāo。','Il est grand.']],
+  '她': [['她是医生。','tā shì yī shēng。','Elle est médecin.'],['她很漂亮。','tā hěn piào liàng。','Elle est très jolie.']],
+  '们': [['我们是朋友。','wǒ men shì péng yǒu。','Nous sommes amis.'],['他们在学校。','tā men zài xué xiào。','Ils sont à l\'école.']],
+  '这': [['这是我的书。','zhè shì wǒ de shū。','C\'est mon livre.'],['这个很好。','zhè ge hěn hǎo。','Celui-ci est très bien.']],
+  '那': [['那是他的车。','nà shì tā de chē。','C\'est sa voiture.'],['那个不贵。','nà ge bù guì。','Celui-là n\'est pas cher.']],
+  '哪': [['你是哪国人？','nǐ shì nǎ guó rén？','De quel pays viens-tu ?'],['你要去哪儿？','nǐ yào qù nǎr？','Où vas-tu ?']],
+  '儿': [['这儿很安静。','zhèr hěn ān jìng。','C\'est très calme ici.'],['我的女儿在学校。','wǒ de nǚ ér zài xué xiào。','Ma fille est à l\'école.']],
+  '谁': [['他是谁？','tā shì shéi？','Qui est-il ?'],['谁是老师？','shéi shì lǎo shī？','Qui est le professeur ?']],
+  '什': [['你叫什么名字？','nǐ jiào shén me míng zì？','Comment t\'appelles-tu ?'],['这是什么？','zhè shì shén me？','Qu\'est-ce que c\'est ?']],
+  '么': [['你要什么？','nǐ yào shén me？','Que veux-tu ?'],['你怎么了？','nǐ zěn me le？','Qu\'est-ce qui t\'arrive ?']],
+  '多': [['你有多少书？','nǐ yǒu duō shǎo shū？','Combien de livres as-tu ?'],['他有很多朋友。','tā yǒu hěn duō péng yǒu。','Il a beaucoup d\'amis.']],
+  '少': [['这里的人不少。','zhè lǐ de rén bù shǎo。','Il y a pas mal de monde ici.'],['他吃得很少。','tā chī dé hěn shǎo。','Il mange très peu.']],
+  '几': [['你家有几个人？','nǐ jiā yǒu jǐ gè rén？','Combien de personnes dans ta famille ?'],['你们有几本书？','nǐ men yǒu jǐ běn shū？','Combien de livres avez-vous ?']],
+  '怎': [['这个字怎么写？','zhè ge zì zěn me xiě？','Comment écrit-on ce caractère ?'],['你今天怎么样？','nǐ jīn tiān zěn me yàng？','Comment vas-tu aujourd\'hui ?']],
+  '样': [['这两个一样。','zhè liǎng gè yī yàng。','Ces deux-là sont pareils.'],['今天天气怎么样？','jīn tiān tiān qì zěn me yàng？','Quel temps fait-il aujourd\'hui ?']],
+  '一': [['我要一杯茶。','wǒ yào yī bēi chá。','Je veux une tasse de thé.'],['他只有一个朋友。','tā zhǐ yǒu yī gè péng yǒu。','Il n\'a qu\'un seul ami.']],
+  '二': [['现在是二月。','xiàn zài shì èr yuè。','On est en février.'],['我有二十块钱。','wǒ yǒu èr shí kuài qián。','J\'ai vingt kuai.']],
+  '三': [['我们三个人。','wǒ men sān gè rén。','Nous sommes trois.'],['现在是三点。','xiàn zài shì sān diǎn。','Il est trois heures.']],
+  '四': [['他家有四口人。','tā jiā yǒu sì kǒu rén。','Il y a quatre personnes dans sa famille.'],['今天是四号。','jīn tiān shì sì hào。','Nous sommes le 4.']],
+  '五': [['现在是五点。','xiàn zài shì wǔ diǎn。','Il est cinq heures.'],['这本书五块钱。','zhè běn shū wǔ kuài qián。','Ce livre coûte cinq kuai.']],
+  '六': [['现在是六月。','xiàn zài shì liù yuè。','On est en juin.'],['火车六点到。','huǒ chē liù diǎn dào。','Le train arrive à six heures.']],
+  '七': [['他七岁了。','tā qī suì le。','Il a sept ans.'],['现在是七点。','xiàn zài shì qī diǎn。','Il est sept heures.']],
+  '八': [['商店八点开门。','shāng diàn bā diǎn kāi mén。','Le magasin ouvre à huit heures.'],['我们八个人。','wǒ men bā gè rén。','Nous sommes huit.']],
+  '九': [['现在是九月。','xiàn zài shì jiǔ yuè。','On est en septembre.'],['那本书九十块。','nà běn shū jiǔ shí kuài。','Ce livre-là coûte quatre-vingt-dix kuai.']],
+  '十': [['他十岁了。','tā shí suì le。','Il a dix ans.'],['现在是十点。','xiàn zài shì shí diǎn。','Il est dix heures.']],
+  '零': [['现在是零度。','xiàn zài shì líng dù。','Il fait zéro degré.'],['他考试得了零分。','tā kǎo shì dé le líng fēn。','Il a eu zéro à l\'examen.']],
+  '个': [['我有一个哥哥。','wǒ yǒu yī gè gē gē。','J\'ai un grand frère.'],['这个多少钱？','zhè ge duō shǎo qián？','Combien coûte celui-ci ?']],
+  '岁': [['你几岁了？','nǐ jǐ suì le？','Quel âge as-tu ?'],['他今年十岁。','tā jīn nián shí suì。','Il a dix ans cette année.']],
+  '本': [['我买了一本书。','wǒ mǎi le yī běn shū。','J\'ai acheté un livre.'],['这本书很好看。','zhè běn shū hěn hǎo kàn。','Ce livre est très intéressant.']],
+  '些': [['我买了一些水果。','wǒ mǎi le yī xiē shuǐ guǒ。','J\'ai acheté des fruits.'],['这些是我的朋友。','zhè xiē shì wǒ de péng yǒu。','Ce sont mes amis.']],
+  '块': [['这个五块钱。','zhè ge wǔ kuài qián。','Cela coûte cinq kuai.'],['我要一块面包。','wǒ yào yī kuài miàn bāo。','Je veux un morceau de pain.']],
+  '不': [['我不喜欢咖啡。','wǒ bù xǐ huān kā fēi。','Je n\'aime pas le café.'],['他不是学生。','tā bù shì xué shēng。','Il n\'est pas étudiant.']],
+  '没': [['我没有钱。','wǒ méi yǒu qián。','Je n\'ai pas d\'argent.'],['他没去学校。','tā méi qù xué xiào。','Il n\'est pas allé à l\'école.']],
+  '很': [['这个茶很好喝。','zhè ge chá hěn hǎo hē。','Ce thé est très bon.'],['她很聪明。','tā hěn cōng míng。','Elle est très intelligente.']],
+  '太': [['这个太贵了。','zhè ge tài guì le。','C\'est trop cher.'],['今天太热了。','jīn tiān tài rè le。','Il fait trop chaud aujourd\'hui.']],
+  '都': [['我们都是学生。','wǒ men dōu shì xué shēng。','Nous sommes tous étudiants.'],['他们都喜欢茶。','tā men dōu xǐ huān chá。','Ils aiment tous le thé.']],
+  '和': [['我和你是朋友。','wǒ hé nǐ shì péng yǒu。','Toi et moi sommes amis.'],['我喜欢茶和咖啡。','wǒ xǐ huān chá hé kā fēi。','J\'aime le thé et le café.']],
+  '在': [['我在家。','wǒ zài jiā。','Je suis à la maison.'],['他在学校学习。','tā zài xué xiào xué xí。','Il étudie à l\'école.']],
+  '的': [['这是谁的手机？','zhè shì shéi de shǒu jī？','À qui est ce téléphone ?'],['我的家很大。','wǒ de jiā hěn dà。','Ma maison est très grande.']],
+  '了': [['我吃饭了。','wǒ chī fàn le。','J\'ai mangé.'],['他去学校了。','tā qù xué xiào le。','Il est allé à l\'école.']],
+  '吗': [['你喜欢茶吗？','nǐ xǐ huān chá ma？','Aimes-tu le thé ?'],['这是你的书吗？','zhè shì nǐ de shū ma？','Est-ce ton livre ?']],
+  '呢': [['我很好，你呢？','wǒ hěn hǎo，nǐ ne？','Je vais bien, et toi ?'],['他在家，你呢？','tā zài jiā，nǐ ne？','Il est à la maison, et toi ?']],
+  '喂': [['喂，你好！','wèi，nǐ hǎo！','Allô, bonjour !'],['喂，是我。','wèi，shì wǒ。','Allô, c\'est moi.']],
+  '家': [['我家有三个人。','wǒ jiā yǒu sān gè rén。','Il y a trois personnes dans ma famille.'],['你家在哪儿？','nǐ jiā zài nǎr？','Où est ta maison ?']],
+  '学': [['我在学中文。','wǒ zài xué zhōng wén。','J\'apprends le chinois.'],['他喜欢学习。','tā xǐ huān xué xí。','Il aime étudier.']],
+  '校': [['学校很大。','xué xiào hěn dà。','L\'école est très grande.'],['我们在学校见。','wǒ men zài xué xiào jiàn。','On se retrouve à l\'école.']],
+  '饭': [['我们去吃饭吧。','wǒ men qù chī fàn ba。','Allons manger.'],['这个饭很好吃。','zhè ge fàn hěn hǎo chī。','Ce repas est très bon.']],
+  '店': [['那家店很有名。','nà jiā diàn hěn yǒu míng。','Ce magasin est très connu.'],['我们去商店。','wǒ men qù shāng diàn。','Nous allons au magasin.']],
+  '商': [['商店几点开门？','shāng diàn jǐ diǎn kāi mén？','À quelle heure ouvre le magasin ?'],['这家商店很大。','zhè jiā shāng diàn hěn dà。','Ce magasin est très grand.']],
+  '医': [['我爸爸是医生。','wǒ bà bà shì yī shēng。','Mon père est médecin.'],['医院很远。','yī yuàn hěn yuǎn。','L\'hôpital est loin.']],
+  '院': [['那个医院很大。','nà ge yī yuàn hěn dà。','Cet hôpital est très grand.'],['他在医院工作。','tā zài yī yuàn gōng zuò。','Il travaille à l\'hôpital.']],
+  '火': [['火车几点到？','huǒ chē jǐ diǎn dào？','À quelle heure arrive le train ?'],['我们坐火车去。','wǒ men zuò huǒ chē qù。','Nous y allons en train.']],
+  '车': [['这是我的车。','zhè shì wǒ de chē。','C\'est ma voiture.'],['火车站很远。','huǒ chē zhàn hěn yuǎn。','La gare est loin.']],
+  '站': [['火车站在哪儿？','huǒ chē zhàn zài nǎr？','Où est la gare ?'],['我们在车站等你。','wǒ men zài chē zhàn děng nǐ。','Nous t\'attendons à la gare.']],
+  '中': [['中国很大。','zhōng guó hěn dà。','La Chine est très grande.'],['他在中国工作。','tā zài zhōng guó gōng zuò。','Il travaille en Chine.']],
+  '国': [['中国是一个大国。','zhōng guó shì yī gè dà guó。','La Chine est un grand pays.'],['我爱我的国家。','wǒ ài wǒ de guó jiā。','J\'aime mon pays.']],
+  '北': [['北京很漂亮。','běi jīng hěn piào liàng。','Pékin est très belle.'],['我们去北京旅游。','wǒ men qù běi jīng lǚ yóu。','Nous allons voyager à Pékin.']],
+  '京': [['北京是中国的首都。','běi jīng shì zhōng guó de shǒu dū。','Pékin est la capitale de la Chine.'],['他在北京上学。','tā zài běi jīng shàng xué。','Il étudie à Pékin.']],
+  '上': [['书在桌子上。','shū zài zhuō zi shàng。','Le livre est sur la table.'],['我在上学。','wǒ zài shàng xué。','Je vais à l\'école.']],
+  '下': [['猫在桌子下。','māo zài zhuō zi xià。','Le chat est sous la table.'],['现在下雨了。','xiàn zài xià yǔ le。','Il pleut maintenant.']],
+  '前': [['他在我前面。','tā zài wǒ qián miàn。','Il est devant moi.'],['三年前我在北京。','sān nián qián wǒ zài běi jīng。','Il y a trois ans, j\'étais à Pékin.']],
+  '面': [['学校前面有商店。','xué xiào qián miàn yǒu shāng diàn。','Il y a un magasin devant l\'école.'],['你后面是谁？','nǐ hòu miàn shì shéi？','Qui est derrière toi ?']],
+  '后': [['他在我后面。','tā zài wǒ hòu miàn。','Il est derrière moi.'],['下课以后我们去吃饭。','xià kè yǐ hòu wǒ men qù chī fàn。','Après le cours, allons manger.']],
+  '里': [['书在包里。','shū zài bāo lǐ。','Le livre est dans le sac.'],['家里有五个人。','jiā lǐ yǒu wǔ gè rén。','Il y a cinq personnes à la maison.']],
+  '今': [['今天天气很好。','jīn tiān tiān qì hěn hǎo。','Il fait beau aujourd\'hui.'],['今年我十八岁。','jīn nián wǒ shí bā suì。','Cette année, j\'ai dix-huit ans.']],
+  '天': [['今天是星期一。','jīn tiān shì xīng qī yī。','Aujourd\'hui, c\'est lundi.'],['天气很好。','tiān qì hěn hǎo。','Il fait beau.']],
+  '明': [['明天见！','míng tiān jiàn！','À demain !'],['明年我去北京。','míng nián wǒ qù běi jīng。','L\'année prochaine, je vais à Pékin.']],
+  '昨': [['昨天我很忙。','zuó tiān wǒ hěn máng。','Hier, j\'étais très occupé.'],['昨天下雨了。','zuó tiān xià yǔ le。','Il a plu hier.']],
+  '午': [['现在是中午。','xiàn zài shì zhōng wǔ。','C\'est midi maintenant.'],['下午我们见面。','xià wǔ wǒ men jiàn miàn。','On se voit cet après-midi.']],
+  '年': [['今年是二零二六年。','jīn nián shì èr líng èr liù nián。','Cette année, c\'est 2026.'],['我在这儿住了三年。','wǒ zài zhèr zhù le sān nián。','J\'habite ici depuis trois ans.']],
+  '月': [['现在是几月？','xiàn zài shì jǐ yuè？','On est en quel mois ?'],['我的生日是八月。','wǒ de shēng rì shì bā yuè。','Mon anniversaire est en août.']],
+  '日': [['今天几月几日？','jīn tiān jǐ yuè jǐ rì？','Quelle est la date d\'aujourd\'hui ?'],['生日快乐！','shēng rì kuài lè！','Joyeux anniversaire !']],
+  '星': [['天上有很多星星。','tiān shàng yǒu hěn duō xīng xīng。','Il y a beaucoup d\'étoiles dans le ciel.'],['今天星期几？','jīn tiān xīng qī jǐ？','On est quel jour de la semaine ?']],
+  '期': [['这个星期我很忙。','zhè ge xīng qī wǒ hěn máng。','Je suis très occupé cette semaine.'],['下星期我去北京。','xià xīng qī wǒ qù běi jīng。','La semaine prochaine, je vais à Pékin.']],
+  '点': [['火车九点到。','huǒ chē jiǔ diǎn dào。','Le train arrive à neuf heures.'],['我一点吃饭。','wǒ yī diǎn chī fàn。','Je mange à une heure.']],
+  '钟': [['这个钟很漂亮。','zhè ge zhōng hěn piào liàng。','Cette horloge est très belle.'],['现在是三点钟。','xiàn zài shì sān diǎn zhōng。','Il est trois heures.']],
+  '分': [['现在是九点十分。','xiàn zài shì jiǔ diǎn shí fēn。','Il est neuf heures dix.'],['我们五分钟后见。','wǒ men wǔ fēn zhōng hòu jiàn。','On se voit dans cinq minutes.']],
+  '现': [['你现在在哪儿？','nǐ xiàn zài zài nǎr？','Où es-tu maintenant ?'],['你现在在做什么？','nǐ xiàn zài zài zuò shén me？','Que fais-tu maintenant ?']],
+};
 
 var LEVELS = { hsk1: HSK1, hsk2: HSK2, hsk3: HSK3, moncours: MON_COURS };
 var pinyinMap = {};
@@ -479,6 +618,100 @@ function renderReviewTag(){
   wrap.appendChild(tag);
 }
 
+// Affiche un exemple d'usage tiré du livre ("Mon cours"), quand disponible.
+// On privilégie l'entrée exacte de la séance en cours (utile si le même
+// caractère existe aussi dans HSK1/2/3, qui n'ont pas d'exemple) et on se
+// rabat sur allCharsMap sinon.
+// Remplit la ligne "Exemple :" / "Mot :" avec un bouton audio à côté du mot.
+function fillExampleBox(box, prefix, hanzi, pinyin, translation, suffix){
+  box.innerHTML = '';
+  box.style.display = 'block';
+  box.appendChild(document.createTextNode(prefix + ' '));
+  var charSpan = document.createElement('span');
+  charSpan.className = 'ex-char';
+  charSpan.textContent = hanzi;
+  box.appendChild(charSpan);
+  box.appendChild(document.createTextNode(' '));
+  var pinyinSpan = document.createElement('span');
+  pinyinSpan.className = 'ex-pinyin';
+  pinyinSpan.textContent = pinyin;
+  box.appendChild(pinyinSpan);
+  box.appendChild(document.createTextNode(' — ' + translation + ' '));
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'listen-icon';
+  btn.title = 'Écouter ce mot';
+  btn.setAttribute('aria-label', 'Écouter ce mot');
+  btn.textContent = '🔊';
+  btn.onclick = function(){ speakChinese(hanzi); };
+  box.appendChild(btn);
+  if(suffix){
+    var suffixSpan = document.createElement('span');
+    suffixSpan.style.color = 'var(--muted)';
+    suffixSpan.textContent = ' ' + suffix;
+    box.appendChild(suffixSpan);
+  }
+}
+
+function renderExample(char, entry){
+  var box = document.getElementById('exampleLine');
+  if(!box) return;
+  var e = (entry && entry.length >= 6 && entry[3]) ? entry : allCharsMap[char];
+  if(!e || e.length < 6 || !e[3]){
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+  fillExampleBox(box, 'Exemple :', e[3], e[4], e[5]);
+}
+
+// Affiche les deux phrases d'exemple (lecture seule, pas à tracer) pour le
+// caractère en cours, avec un bouton audio par phrase.
+function renderSentences(char){
+  var wrap = document.getElementById('sentencesBox');
+  var list = document.getElementById('sentencesList');
+  if(!wrap || !list) return;
+  var sents = SENTENCES[char];
+  list.innerHTML = '';
+  if(!sents || sents.length === 0){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  sents.forEach(function(s){
+    var hanzi = s[0], py = s[1], fr = s[2];
+    var row = document.createElement('div');
+    row.className = 'sentence-row';
+
+    var textWrap = document.createElement('div');
+    textWrap.className = 'sentence-text';
+    var hanziDiv = document.createElement('div');
+    hanziDiv.className = 'sentence-hanzi';
+    hanziDiv.textContent = hanzi;
+    var pinyinDiv = document.createElement('div');
+    pinyinDiv.className = 'sentence-pinyin';
+    pinyinDiv.textContent = py;
+    var frDiv = document.createElement('div');
+    frDiv.className = 'sentence-fr';
+    frDiv.textContent = fr;
+    textWrap.appendChild(hanziDiv);
+    textWrap.appendChild(pinyinDiv);
+    textWrap.appendChild(frDiv);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'listen-icon';
+    btn.title = 'Écouter cette phrase';
+    btn.setAttribute('aria-label', 'Écouter cette phrase');
+    btn.textContent = '🔊';
+    btn.onclick = function(){ speakChinese(hanzi); };
+
+    row.appendChild(textWrap);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+
 document.getElementById('reviewSessionBtn').onclick = function(){
   var entries = getReviewEntries();
   if(entries.length === 0) return;
@@ -495,6 +728,8 @@ var prevBtn = document.getElementById('prevBtn');
 var nextBtn = document.getElementById('nextBtn');
 
 var session = null; // {queue:[[char,pinyin,meaning]], index, results:[{ok:bool}|null]}
+var subQueue = []; // caractères à tracer pour la position de séance en cours (principal + mot composé éventuel)
+var subIndex = 0;
 
 function shuffle(arr){
   var a = arr.slice();
@@ -513,7 +748,6 @@ function shuffle(arr){
 // progressivement au lieu de piocher au hasard dans toute la liste.
 function buildSessionQueue(pool, batchSize, sequential){
   var take = Math.min(batchSize, pool.length);
-  var priorityCap = Math.max(1, Math.ceil(take / 2));
 
   var priority = pool.filter(function(e){
     var r = progress.chars[e[0]];
@@ -521,20 +755,30 @@ function buildSessionQueue(pool, batchSize, sequential){
   });
   var rest = pool.filter(function(e){ return priority.indexOf(e) === -1; });
 
-  var chosenPriority = shuffle(priority).slice(0, Math.min(priorityCap, take));
-  var remaining = take - chosenPriority.length;
+  var chosenPriority, chosenRest;
 
-  var chosenRest;
   if(sequential){
+    // "Mon cours" : on couvre d'abord tous les caractères jamais encore vus
+    // (dans l'ordre du livre), et la révision ne prend les places restantes
+    // que s'il en reste — sinon on resterait bloqué sur les premiers
+    // caractères dès que quelques échecs s'accumulent.
     var neverAttempted = rest.filter(function(e){ return !progress.chars[e[0]]; });
-    chosenRest = neverAttempted.slice(0, remaining);
-    if(chosenRest.length < remaining){
-      // Tout le cours a déjà été vu au moins une fois : on complète avec
-      // le reste (déjà pratiqué, sans échec en cours), au hasard.
-      var alreadySeen = rest.filter(function(e){ return chosenRest.indexOf(e) === -1; });
-      chosenRest = chosenRest.concat(shuffle(alreadySeen).slice(0, remaining - chosenRest.length));
+    var chosenNew = neverAttempted.slice(0, take);
+    var reviewBudget = take - chosenNew.length;
+    chosenPriority = shuffle(priority).slice(0, reviewBudget);
+    var usedSoFar = chosenNew.length + chosenPriority.length;
+    var stillNeeded = take - usedSoFar;
+    if(stillNeeded > 0){
+      // Tout est déjà vu au moins une fois et il n'y a plus assez à réviser :
+      // on complète avec le reste, au hasard.
+      var alreadySeen = rest.filter(function(e){ return chosenNew.indexOf(e) === -1; });
+      chosenNew = chosenNew.concat(shuffle(alreadySeen).slice(0, stillNeeded));
     }
+    chosenRest = chosenNew;
   } else {
+    var priorityCap = Math.max(1, Math.ceil(take / 2));
+    chosenPriority = shuffle(priority).slice(0, Math.min(priorityCap, take));
+    var remaining = take - chosenPriority.length;
     chosenRest = shuffle(rest).slice(0, remaining);
   }
 
@@ -604,8 +848,47 @@ function loadSessionChar(idx){
   renderCharList();
   quizStatus.textContent = '';
   quizStatus.className = 'quiz-status';
-  loadChar(session.queue[idx][0]);
+  subQueue = buildSubQueue(session.queue[idx]);
+  loadSubChar(0);
+}
+
+// Construit la liste des caractères à tracer pour cette position de séance :
+// le caractère principal, puis (si la case est cochée et qu'un exemple existe)
+// chaque caractère du mot composé donné en exemple dans le livre.
+function buildSubQueue(entry){
+  var q = [{ char: entry[0], entry: entry, isCompoundPart: false }];
+  var includeCompound = document.getElementById('compoundToggle').checked;
+  if(includeCompound && entry.length >= 6 && entry[3]){
+    var compoundChars = Array.from(entry[3]).filter(function(c){
+      var code = c.codePointAt(0);
+      return code >= 0x4e00 && code <= 0x9fff; // ne garder que de vrais sinogrammes (pas la ponctuation type "？")
+    }).filter(function(c){
+      return c !== entry[0]; // on saute le caractère déjà tracé juste avant, on va direct à la nouveauté du mot
+    });
+    compoundChars.forEach(function(c, i){
+      q.push({ char: c, entry: entry, isCompoundPart: true, compoundIndex: i, compoundTotal: compoundChars.length });
+    });
+  }
+  return q;
+}
+
+function loadSubChar(i){
+  subIndex = i;
+  var item = subQueue[i];
+  if(!item) return;
+  loadChar(item.char, item.isCompoundPart ? null : item.entry);
+  if(item.isCompoundPart){
+    renderCompoundProgress(item);
+  }
   setTimeout(function(){ if(writer){ startQuiz(); } }, 300);
+}
+
+function renderCompoundProgress(item){
+  var box = document.getElementById('exampleLine');
+  if(!box) return;
+  var entry = item.entry;
+  fillExampleBox(box, 'Mot :', entry[3], entry[4], entry[5],
+    '(caractère ' + (item.compoundIndex + 1) + '/' + item.compoundTotal + ')');
 }
 
 function updateSessionProgress(){
@@ -657,7 +940,7 @@ document.getElementById('closeSummaryBtn').onclick = function(){
   document.getElementById('summaryCard').style.display = 'none';
 };
 
-function loadChar(char){
+function loadChar(char, entry){
   errorMsg.style.display = 'none';
   quizStatus.textContent = '';
   quizStatus.className = 'quiz-status';
@@ -668,6 +951,8 @@ function loadChar(char){
   currentChar = char;
   document.getElementById('pinyinLabel').textContent = pinyinMap[char] || char;
   renderReviewTag();
+  renderExample(char, entry);
+  renderSentences(char);
 
   if(typeof HanziWriter === 'undefined'){
     errorMsg.textContent = 'La bibliothèque de tracé n\'a pas pu se charger. Vérifie ta connexion internet et recharge la page.';
@@ -712,6 +997,8 @@ document.getElementById('animateBtn').onclick = function(){
 function startQuiz(){
   var hadMistake = false;
   var mistakeCounts = {};
+  var thisItem = subQueue[subIndex];
+  var thisChar = currentChar;
   writer.hideCharacter();
   quizStatus.textContent = 'Dessine le caractère trait par trait dans la grille';
   quizStatus.className = 'quiz-status';
@@ -734,14 +1021,22 @@ function startQuiz(){
       quizStatus.className = 'quiz-status err';
     },
     onComplete: function(){
-      quizStatus.textContent = 'Caractère terminé';
-      quizStatus.className = 'quiz-status ok';
-      if(session){
+      recordResult(thisChar, !hadMistake);
+      // Seul le résultat du caractère principal compte pour le suivi de la séance
+      // (le point de couleur dans la liste, la barre de progression).
+      if(!thisItem.isCompoundPart && session){
         session.results[session.index] = { ok: !hadMistake };
         renderCharList();
         updateSessionProgress();
       }
-      recordResult(currentChar, !hadMistake);
+      if(subIndex < subQueue.length - 1){
+        quizStatus.textContent = 'Caractère terminé — au suivant du mot...';
+        quizStatus.className = 'quiz-status ok';
+        setTimeout(function(){ loadSubChar(subIndex + 1); }, 800);
+      } else {
+        quizStatus.textContent = 'Caractère terminé';
+        quizStatus.className = 'quiz-status ok';
+      }
     }
   });
 }
@@ -751,28 +1046,67 @@ document.getElementById('quizBtn').onclick = function(){
   startQuiz();
 };
 
+var chineseVoices = [];
 var chineseVoice = null;
-function pickChineseVoice(){
+var VOICE_PREF_KEY = 'hanziVoicePref_v1';
+
+function refreshChineseVoices(){
   if(!('speechSynthesis' in window)) return;
-  var voices = speechSynthesis.getVoices();
-  chineseVoice = voices.find(function(v){ return v.lang === 'zh-CN'; }) ||
-                 voices.find(function(v){ return v.lang && v.lang.indexOf('zh') === 0; }) ||
-                 null;
-}
-if('speechSynthesis' in window){
-  pickChineseVoice();
-  speechSynthesis.onvoiceschanged = pickChineseVoice;
+  var all = speechSynthesis.getVoices();
+  chineseVoices = all.filter(function(v){
+    return v.lang === 'zh-CN' || (v.lang && v.lang.toLowerCase().indexOf('zh') === 0);
+  });
+  populateVoiceSelect();
+  applyVoicePreference();
 }
 
-document.getElementById('listenBtn').onclick = function(){
-  if(!currentChar) return;
-  if(!('speechSynthesis' in window)){
-    quizStatus.textContent = 'La lecture vocale n\'est pas prise en charge par ce navigateur.';
-    quizStatus.className = 'quiz-status err';
+function populateVoiceSelect(){
+  var sel = document.getElementById('voiceSelect');
+  if(!sel) return;
+  sel.innerHTML = '';
+  if(chineseVoices.length === 0){
+    var opt = document.createElement('option');
+    opt.textContent = 'Aucune voix chinoise trouvée';
+    opt.value = '';
+    sel.appendChild(opt);
+    sel.disabled = true;
     return;
   }
-  pickChineseVoice();
-  var utter = new SpeechSynthesisUtterance(currentChar);
+  sel.disabled = false;
+  chineseVoices.forEach(function(v){
+    var opt = document.createElement('option');
+    opt.value = v.voiceURI || v.name;
+    opt.textContent = v.name + (v.lang ? ' (' + v.lang + ')' : '');
+    sel.appendChild(opt);
+  });
+}
+
+function applyVoicePreference(){
+  var sel = document.getElementById('voiceSelect');
+  if(!sel || chineseVoices.length === 0) return;
+  var pref = null;
+  try { pref = localStorage.getItem(VOICE_PREF_KEY); } catch(e){}
+  var match = pref ? chineseVoices.find(function(v){ return (v.voiceURI || v.name) === pref; }) : null;
+  chineseVoice = match || chineseVoices[0];
+  sel.value = chineseVoice.voiceURI || chineseVoice.name;
+}
+
+document.getElementById('voiceSelect').onchange = function(){
+  var picked = chineseVoices.find(function(v){ return (v.voiceURI || v.name) === this.value; }, this);
+  if(picked){
+    chineseVoice = picked;
+    try { localStorage.setItem(VOICE_PREF_KEY, picked.voiceURI || picked.name); } catch(e){}
+  }
+};
+
+if('speechSynthesis' in window){
+  refreshChineseVoices();
+  speechSynthesis.onvoiceschanged = refreshChineseVoices;
+}
+
+function speakChinese(text){
+  if(!('speechSynthesis' in window)) return false;
+  var utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'zh-CN';
   if(chineseVoice) utter.voice = chineseVoice;
   utter.rate = 0.85;
@@ -782,7 +1116,24 @@ document.getElementById('listenBtn').onclick = function(){
   };
   speechSynthesis.cancel();
   speechSynthesis.speak(utter);
+  return true;
+}
+
+document.getElementById('testVoiceBtn').onclick = function(){
+  if(!speakChinese('你好，很高兴认识你')){
+    quizStatus.textContent = 'La lecture vocale n\'est pas prise en charge par ce navigateur.';
+    quizStatus.className = 'quiz-status err';
+  }
 };
+
+document.getElementById('listenBtn').onclick = function(){
+  if(!currentChar) return;
+  if(!speakChinese(currentChar)){
+    quizStatus.textContent = 'La lecture vocale n\'est pas prise en charge par ce navigateur.';
+    quizStatus.className = 'quiz-status err';
+  }
+};
+
 
 document.getElementById('outlineToggle').onchange = function(){
   outlineEnabled = this.checked;
