@@ -175,6 +175,16 @@
     border:none; background:transparent; color:var(--ok); font-size:11px; font-weight:600;
     cursor:pointer; padding:0; text-decoration:underline;
   }
+  .acquired-tag{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);
+    margin-left:4px;
+  }
+  .acquired-tag button{
+    border:none; background:transparent; color:var(--muted); font-size:11px;
+    cursor:pointer; padding:0; text-decoration:underline;
+  }
+  .acquired-tag.is-acquired{ color:var(--ok) }
+  .acquired-tag.is-acquired button{ color:var(--accent) }
 
   .backup-row{ display:flex; gap:8px; flex-wrap:wrap }
   .backup-row button{
@@ -276,6 +286,7 @@
       <select id="voiceSelect" title="Choisir la voix chinoise" style="font-size:12px; max-width:150px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); padding:3px 4px;"></select>
       <button id="testVoiceBtn" title="Tester cette voix" style="font-size:11px; border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--muted); padding:3px 8px; cursor:pointer;">Tester</button>
       <span id="reviewTagWrap"></span>
+      <span id="acquiredTagWrap"></span>
       <label class="outline-toggle" for="outlineToggle">
         <input type="checkbox" id="outlineToggle" checked>
         Modèle
@@ -296,6 +307,12 @@
       <div id="sentencesList"></div>
     </div>
   </div>
+
+  <details class="backup-footer">
+    <summary>Caractères définitivement acquis</summary>
+    <p>Ces caractères sont exclus de toutes les séances (nouveau, révision, rafraîchissement). Retire-les d'ici si tu veux qu'ils reviennent s'exercer.</p>
+    <div id="acquiredList"></div>
+  </details>
 
   <details class="backup-footer">
     <summary>Sauvegarde entre appareils</summary>
@@ -552,7 +569,27 @@ function recordResult(char, ok){
 
 function isInReview(char){
   var r = progress.chars[char];
-  return !!r && !r.mastered && (r.failCount || 0) >= REVIEW_THRESHOLD;
+  return !!r && !r.mastered && !r.acquired && (r.failCount || 0) >= REVIEW_THRESHOLD;
+}
+
+function isAcquired(char){
+  var r = progress.chars[char];
+  return !!r && !!r.acquired;
+}
+
+// Marque un caractère comme définitivement acquis : il sort de toute
+// rotation (nouveaux, révision, rafraîchissement aléatoire) jusqu'à ce
+// que ce statut soit levé manuellement.
+function toggleAcquired(char){
+  var rec = progress.chars[char] || { failCount: 0, mastered: false, acquired: false, updatedAt: 0 };
+  rec.acquired = !rec.acquired;
+  rec.updatedAt = Date.now();
+  progress.chars[char] = rec;
+  saveProgress();
+  renderReviewList();
+  renderReviewTag();
+  renderAcquiredTag();
+  renderAcquiredList();
 }
 
 function markMastered(char){
@@ -571,6 +608,40 @@ function getReviewEntries(){
     .filter(function(c){ return !!allCharsMap[c]; })
     .sort(function(a, b){ return (progress.chars[b].failCount || 0) - (progress.chars[a].failCount || 0); })
     .map(function(c){ return allCharsMap[c]; });
+}
+
+function getAcquiredEntries(){
+  return Object.keys(progress.chars)
+    .filter(isAcquired)
+    .filter(function(c){ return !!allCharsMap[c]; })
+    .sort(function(a, b){ return (progress.chars[a].updatedAt || 0) - (progress.chars[b].updatedAt || 0); })
+    .map(function(c){ return allCharsMap[c]; });
+}
+
+function renderAcquiredList(){
+  var wrap = document.getElementById('acquiredList');
+  if(!wrap) return;
+  var entries = getAcquiredEntries();
+  wrap.innerHTML = '';
+  if(entries.length === 0){
+    wrap.innerHTML = '<div class="review-empty">Aucun caractère marqué comme définitivement acquis.</div>';
+    return;
+  }
+  entries.forEach(function(entry){
+    var char = entry[0];
+    var row = document.createElement('div');
+    row.className = 'review-item';
+    row.style.marginBottom = '8px';
+    row.innerHTML =
+      '<span class="rc">' + char + '</span>' +
+      '<span class="ri"><span class="rp">' + entry[1] + '</span> <span class="rm">' + entry[2] + '</span></span>';
+    var backBtn = document.createElement('button');
+    backBtn.className = 'rok';
+    backBtn.textContent = '↩ Réintégrer';
+    backBtn.onclick = function(){ toggleAcquired(char); renderAcquiredList(); };
+    row.appendChild(backBtn);
+    wrap.appendChild(row);
+  });
 }
 
 function renderReviewList(){
@@ -612,8 +683,31 @@ function renderReviewTag(){
   tag.className = 'review-tag';
   tag.innerHTML = '🔁 à revoir (' + fails + ')';
   var btn = document.createElement('button');
-  btn.textContent = 'Marquer acquis';
+  btn.textContent = 'Retirer de la révision';
   btn.onclick = function(){ markMastered(currentChar); };
+  tag.appendChild(btn);
+  wrap.appendChild(tag);
+}
+
+// Bouton "définitivement acquis" : disponible pour n'importe quel
+// caractère (pas seulement ceux en révision), permet de l'exclure
+// complètement des futures séances jusqu'à annulation manuelle.
+function renderAcquiredTag(){
+  var wrap = document.getElementById('acquiredTagWrap');
+  if(!wrap) return;
+  wrap.innerHTML = '';
+  if(!currentChar) return;
+  var acquired = isAcquired(currentChar);
+  var tag = document.createElement('span');
+  tag.className = 'acquired-tag' + (acquired ? ' is-acquired' : '');
+  var btn = document.createElement('button');
+  if(acquired){
+    tag.innerHTML = '🔒 Définitivement acquis ';
+    btn.textContent = 'Annuler';
+  } else {
+    btn.textContent = '🔓 Marquer comme définitivement acquis';
+  }
+  btn.onclick = function(){ toggleAcquired(currentChar); };
   tag.appendChild(btn);
   wrap.appendChild(tag);
 }
@@ -740,13 +834,15 @@ function shuffle(arr){
   return a;
 }
 
-// Donne la priorité aux caractères déjà ratés au moins une fois (et pas encore acquis)
-// pour qu'ils reviennent plus vite dans les séances suivantes, sans pour autant
-// remplacer toute la séance : au plus la moitié des places leur est réservée.
-// Pour "Mon cours" (sequential=true), les places restantes puisent dans les
-// caractères jamais encore pratiqués, dans l'ordre du livre — pour avancer
-// progressivement au lieu de piocher au hasard dans toute la liste.
+// Répartit chaque séance entre trois catégories, en excluant d'abord tout
+// caractère marqué "définitivement acquis" :
+//  - nouveau  : jamais encore pratiqué (tiré au hasard dans tout le reste
+//               du pool, pas dans l'ordre du livre) — pour "Mon cours"
+//  - révision : raté au moins une fois et pas encore retiré de la révision
+//  - rafraîchissement : déjà réussi, une petite part lui est réservée à
+//               chaque séance pour qu'il revienne de temps en temps
 function buildSessionQueue(pool, batchSize, sequential){
+  pool = pool.filter(function(e){ return !isAcquired(e[0]); });
   var take = Math.min(batchSize, pool.length);
 
   var priority = pool.filter(function(e){
@@ -758,23 +854,32 @@ function buildSessionQueue(pool, batchSize, sequential){
   var chosenPriority, chosenRest;
 
   if(sequential){
-    // "Mon cours" : on couvre d'abord tous les caractères jamais encore vus
-    // (dans l'ordre du livre), et la révision ne prend les places restantes
-    // que s'il en reste — sinon on resterait bloqué sur les premiers
-    // caractères dès que quelques échecs s'accumulent.
     var neverAttempted = rest.filter(function(e){ return !progress.chars[e[0]]; });
-    var chosenNew = neverAttempted.slice(0, take);
-    var reviewBudget = take - chosenNew.length;
-    chosenPriority = shuffle(priority).slice(0, reviewBudget);
-    var usedSoFar = chosenNew.length + chosenPriority.length;
+    var alreadyOk = rest.filter(function(e){ return progress.chars[e[0]] && neverAttempted.indexOf(e) === -1; });
+
+    // Petite part réservée au rafraîchissement des caractères déjà réussis,
+    // à chaque séance (pas seulement une fois le cours entièrement vu).
+    var refreshSlots = alreadyOk.length > 0 ? Math.min(alreadyOk.length, Math.max(1, Math.round(take * 0.15))) : 0;
+    var chosenRefresh = shuffle(alreadyOk).slice(0, refreshSlots);
+
+    var afterRefresh = take - chosenRefresh.length;
+    var reviewSlots = Math.min(priority.length, Math.ceil(afterRefresh / 2));
+    chosenPriority = shuffle(priority).slice(0, reviewSlots);
+
+    var afterReview = afterRefresh - chosenPriority.length;
+    // Tirage au hasard parmi TOUS les jamais-vus, plus dans l'ordre strict du livre.
+    var chosenNew = shuffle(neverAttempted).slice(0, afterReview);
+
+    var usedSoFar = chosenRefresh.length + chosenPriority.length + chosenNew.length;
     var stillNeeded = take - usedSoFar;
     if(stillNeeded > 0){
-      // Tout est déjà vu au moins une fois et il n'y a plus assez à réviser :
-      // on complète avec le reste, au hasard.
-      var alreadySeen = rest.filter(function(e){ return chosenNew.indexOf(e) === -1; });
-      chosenNew = chosenNew.concat(shuffle(alreadySeen).slice(0, stillNeeded));
+      // Plus rien de neuf ni à réviser/rafraîchir en quantité suffisante :
+      // on complète avec le reste du pool, au hasard.
+      var used = chosenRefresh.concat(chosenPriority, chosenNew);
+      var leftover = pool.filter(function(e){ return used.indexOf(e) === -1; });
+      chosenNew = chosenNew.concat(shuffle(leftover).slice(0, stillNeeded));
     }
-    chosenRest = chosenNew;
+    chosenRest = chosenRefresh.concat(chosenNew);
   } else {
     var priorityCap = Math.max(1, Math.ceil(take / 2));
     chosenPriority = shuffle(priority).slice(0, Math.min(priorityCap, take));
@@ -951,6 +1056,7 @@ function loadChar(char, entry){
   currentChar = char;
   document.getElementById('pinyinLabel').textContent = pinyinMap[char] || char;
   renderReviewTag();
+  renderAcquiredTag();
   renderExample(char, entry);
   renderSentences(char);
 
@@ -1201,6 +1307,7 @@ document.getElementById('importFile').onchange = function(e){
     saveProgress();
     renderReviewList();
     renderReviewTag();
+    renderAcquiredList();
     setBackupStatus(added + ' caractère(s) ajouté(s), ' + updated + ' mis à jour depuis l\'import.', 'ok');
     e.target.value = '';
   };
@@ -1211,6 +1318,7 @@ document.getElementById('importFile').onchange = function(e){
 };
 
 renderReviewList();
+renderAcquiredList();
 
 // Enregistre le service worker pour un fonctionnement hors connexion
 // après le premier chargement complet de la page.
