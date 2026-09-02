@@ -205,6 +205,9 @@
   .backup-footer summary::before{ content:"⚙ "; opacity:0.7 }
   .backup-footer summary:hover{ color:var(--ink) }
   .backup-footer p{ font-size:12px; color:var(--muted); margin:10px 0 }
+  .stroke-rules{ margin:0; padding-left:20px; font-size:13px; color:var(--ink) }
+  .stroke-rules li{ margin-bottom:8px; line-height:1.5 }
+  .stroke-rules strong{ color:var(--accent) }
   .backup-footer .backup-row button{
     padding:6px 10px; font-size:12px; border:1px solid var(--line); border-radius:6px;
     background:var(--card); color:var(--ink); cursor:pointer;
@@ -235,10 +238,6 @@
       </select>
       <button id="startSessionBtn">Générer une séance</button>
     </div>
-    <label class="outline-toggle" for="compoundToggle" style="margin-top:10px">
-      <input type="checkbox" id="compoundToggle">
-      Inclure aussi les mots composés (si disponibles pour "Mon cours")
-    </label>
 
     <div id="sessionArea" style="display:none">
       <div class="session-progress">
@@ -262,13 +261,6 @@
   </div>
 
   <div class="error" id="errorMsg"></div>
-
-  <div class="card placeholder" id="placeholderCard">
-    <h2>Sélection du jour</h2>
-    <p style="font-size:13px; color:var(--muted); margin:0 0 10px">20 caractères HSK1 tirés au sort à l'ouverture de la page — recharge la page pour en obtenir une nouvelle sélection.</p>
-    <div class="char-list" id="dailyList" style="margin-bottom:12px"></div>
-    <button id="startDailyBtn" style="width:100%; padding:9px; border:none; border-radius:8px; background:var(--accent); color:#fff; font-size:14px; font-weight:500; cursor:pointer;">S'entraîner avec cette sélection</button>
-  </div>
 
   <div class="card" id="practiceCard" style="display:none">
     <div class="char-info">
@@ -298,6 +290,22 @@
       <div id="sentencesList"></div>
     </div>
   </div>
+
+  <details class="backup-footer">
+    <summary>Rappel : ordre des traits (笔顺)</summary>
+    <p>Les règles principales, dans l'ordre où elles s'appliquent le plus souvent :</p>
+    <ol class="stroke-rules">
+      <li><strong>Haut avant bas.</strong> Ex : 三, 字, 星 — le trait du haut d'abord.</li>
+      <li><strong>Gauche avant droite.</strong> Ex : 你, 好, 他 — la partie gauche avant la partie droite.</li>
+      <li><strong>Horizontale avant verticale</strong> quand les deux se croisent. Ex : 十, 王, 干.</li>
+      <li><strong>Trait descendant vers la gauche (撇) avant trait descendant vers la droite (捺).</strong> Ex : 人, 八, 大.</li>
+      <li><strong>L'extérieur avant l'intérieur</strong> pour les caractères "boîte". Ex : 国, 回, 日 — les côtés extérieurs d'abord, le contenu ensuite.</li>
+      <li><strong>Le trait du bas qui ferme la boîte vient en dernier.</strong> Ex : 国, 回 — le petit trait horizontal du bas ferme le caractère à la toute fin.</li>
+      <li><strong>Le trait central vertical qui traverse tout vient en dernier</strong> quand il coupe plusieurs autres traits. Ex : 中, 车.</li>
+      <li><strong>Les points et petits traits en haut à droite viennent en dernier.</strong> Ex : 我, 犬.</li>
+    </ol>
+    <p style="margin-top:10px">Astuce : en cas de doute sur un caractère précis, clique sur "Voir l'animation" pendant la pratique — c'est toujours la référence la plus fiable.</p>
+  </details>
 
   <details class="backup-footer">
     <summary id="reviewSummary">À revoir</summary>
@@ -439,6 +447,46 @@ var MON_COURS = [
   ['星','xīng','star','明星','míngxīng','celebrity, star'],['期','qī','period of time','星期','xīngqī','week'],
   ['点','diǎn','dot, spot','雨点','yǔdiǎn','raindrop'],['钟','zhōng','clock, oˈclock','点钟','diǎn zhōng','oˈclock'],
   ['分','fēn','to divide','分钟','fēnzhōng','minute'],['现','xiàn','present, to appear','现在','xiànzài','now'],
+  ['时','shí','time, hour','同时','tóngshí','at the same time'],['候','hòu','to wait','时候','shíhou','time'],
+  ['爸','bà','dad, father','爸爸','bàba','father'],['妈','mā','mother, mom','妈妈','māma','mother'],
+  ['子','zǐ','son, child','儿子','érzi','son'],['女','nǚ','female, woman','女儿','nǚér','daughter'],
+  ['老','lǎo','old','老人','lǎorén','old people'],['师','shī','teacher, master','老师','lǎoshī','teacher'],
+  ['生','shēng','student','学生','xuéshēng','student'],['同','tóng','same','同学','tóngxué','schoolmate'],
+  ['朋','péng','friend','朋友','péngyou','friend'],['友','yǒu','friend','好友','hǎoyǒu','good friend'],
+  ['先','xiān','early, prior','先生','xiānsheng','sir, husband'],['小','xiǎo','small','小时','xiǎoshí','hour'],
+  ['姐','jiě','older sister','小姐','xiǎojiě','Miss'],['服','fú','clothes','衣服','yīfu','clothes'],
+  ['衣','yī','clothes','大衣','dàyī','coat'],['水','shuǐ','water','水平','shuǐpíng','level, standard'],
+  ['菜','cài','vegetable, dish','小菜','xiǎocài','appetizer, small dish'],['米','mǐ','rice','米饭','mǐfàn','(cooked) rice'],
+  ['果','guǒ','fruit','水果','shuǐguǒ','fruit'],['苹','píng','apple','苹果','píngguǒ','apple'],
+  ['茶','chá','tea','茶几','chájǐ','coffee table (literally, tea table)'],['杯','bēi','cup','杯子','bēizi','cup'],
+  ['钱','qián','money','有钱','yǒuqián','rich'],['飞','fēi','to fly','起飞','qǐfēi','to take off'],
+  ['机','jī','machine','飞机','fēijī','airplane'],['出','chū','to exit','出来','chūlái','to appear, to come out'],
+  ['租','zū','to rent','出租车','chūzūchē','taxi'],['电','diàn','electricity','电子','diànzǐ','electronic, electron'],
+  ['视','shì','vision','电视','diànshì','television'],['脑','nǎo','brain','电脑','diànnǎo','computer'],
+  ['影','yǐng','image, shadow','电影','diànyǐng','movie'],['气','qì','air','天气','tiānqì','weather'],
+  ['猫','māo','cat','白猫','báimāo','white cat'],['狗','gǒu','dog','小狗','xiǎogǒu','puppy'],
+  ['东','dōng','east','东北','dōngběi','northeast'],['西','xī','west','东西','dōngxi','thing'],
+  ['人','rén','person','本人','běnrén','the person himself, myself'],['字','zì','word','汉字','Hànzì','Chinese characters'],
+  ['名','míng','name','名字','míngzi','name'],['书','shū','book','书面','shūmiàn','in writing, written'],
+  ['汉','hàn','Han (ethnic group)','汉语','Hànyǔ','Chinese language'],['语','yǔ','language','语言','yǔyán','language'],
+  ['桌','zhuō','table','桌子','zhuōzi','desk'],['椅','yǐ','chair','椅子','yǐzi','chair'],
+  ['谢','xiè','to thank','谢谢','xièxie','thanks'],['客','kè','customer, guest','不客气','bú kèqì','you are welcome'],
+  ['见','jiàn','to see','见面','jiànmiàn','to meet (in person)'],['再','zài','again','再见','zàijiàn','good-bye'],
+  ['请','qǐng','please','请问','qǐngwèn','Can I ask?'],['对','duì','correct, toward','面对','miànduì','to confront, to face'],
+  ['起','qǐ','to rise, to raise','对不起','duìbùqǐ','sorry'],['关','guān','to close, to turn off','有关','yǒuguān','related'],
+  ['系','xì','system','没关系','méiguānxi','to not matter'],['是','shì','to be (am, is, are)','不是','búshì','no, is not'],
+  ['有','yǒu','to have, to exist','没有','méiyǒu','to not have'],['看','kàn','to look, to see','看书','kànshū','to read'],
+  ['听','tīng','to listen, to hear','听说','tīngshuō','to hear, hearsay'],['说','shuō','to say, to speak','说话','shuōhuà','to talk'],
+  ['话','huà','speech, dialect','听话','tīnghuà','obedient'],['读','dú','to read','读书','dúshū','to read a book, to study'],
+  ['写','xiě','to write','写字','xiězì','to write, to practice writing'],['叫','jiào','to call, to order','叫好','jiàohǎo','to cheer, to applaud'],
+  ['来','lái','to come','过来','guòlai','to come here, to come over'],['回','huí','to return','回家','huíjiā','to return home'],
+  ['去','qù','to go','下去','xiàqù','to go down'],['吃','chī','to eat','好吃','hǎochī','tasty'],
+  ['喝','hē','to drink','喝茶','hēchá','to drink tea'],['睡','shuì','to sleep','睡觉','shuìjiào','to sleep'],
+  ['觉','jiào','sleep','午觉','wǔjiào','afternoon nap, siesta'],['打','dǎ','to hit','打电话','dǎ diànhuà','to call up'],
+  ['做','zuò','to do, to make','做饭','zuòfàn','to make a meal, to cook'],['买','mǎi','to buy','买票','mǎi piào','to buy ticket(s)'],
+  ['开','kāi','to open, to start','打开','dǎkāi','to open, to turn on'],['坐','zuò','to sit, to ride','请坐','qǐngzuò','please have a seat'],
+  ['住','zhù','to live, to stay','住在','zhù zài','to live in'],['习','xí','to practice','学习','xuéxí','to study, to learn'],
+  ['工','gōng','work','人工','réngōng','artificial'],['作','zuò','to do','工作','gōngzuò','to work'],
 ];
 
 var SENTENCES = {
@@ -455,7 +503,7 @@ var SENTENCES = {
   '什': [['你叫什么名字？','nǐ jiào shén me míng zì？','Comment t\'appelles-tu ?'],['这是什么？','zhè shì shén me？','Qu\'est-ce que c\'est ?']],
   '么': [['你要什么？','nǐ yào shén me？','Que veux-tu ?'],['你怎么了？','nǐ zěn me le？','Qu\'est-ce qui t\'arrive ?']],
   '多': [['你有多少书？','nǐ yǒu duō shǎo shū？','Combien de livres as-tu ?'],['他有很多朋友。','tā yǒu hěn duō péng yǒu。','Il a beaucoup d\'amis.']],
-  '少': [['这里的人不少。','zhè lǐ de rén bù shǎo。','Il y a pas mal de monde ici.'],['他吃得很少。','tā chī dé hěn shǎo。','Il mange très peu.']],
+  '少': [['这里的人不少。','zhè lǐ de rén bù shǎo。','Il y a pas mal de monde ici.'],['他吃得很少。','tā chī de hěn shǎo。','Il mange très peu.']],
   '几': [['你家有几个人？','nǐ jiā yǒu jǐ gè rén？','Combien de personnes dans ta famille ?'],['你们有几本书？','nǐ men yǒu jǐ běn shū？','Combien de livres avez-vous ?']],
   '怎': [['这个字怎么写？','zhè ge zì zěn me xiě？','Comment écrit-on ce caractère ?'],['你今天怎么样？','nǐ jīn tiān zěn me yàng？','Comment vas-tu aujourd\'hui ?']],
   '样': [['这两个一样。','zhè liǎng gè yī yàng。','Ces deux-là sont pareils.'],['今天天气怎么样？','jīn tiān tiān qì zěn me yàng？','Quel temps fait-il aujourd\'hui ?']],
@@ -522,6 +570,86 @@ var SENTENCES = {
   '钟': [['这个钟很漂亮。','zhè ge zhōng hěn piào liàng。','Cette horloge est très belle.'],['现在是三点钟。','xiàn zài shì sān diǎn zhōng。','Il est trois heures.']],
   '分': [['现在是九点十分。','xiàn zài shì jiǔ diǎn shí fēn。','Il est neuf heures dix.'],['我们五分钟后见。','wǒ men wǔ fēn zhōng hòu jiàn。','On se voit dans cinq minutes.']],
   '现': [['你现在在哪儿？','nǐ xiàn zài zài nǎr？','Où es-tu maintenant ?'],['你现在在做什么？','nǐ xiàn zài zài zuò shén me？','Que fais-tu maintenant ?']],
+  '时': [['现在是什么时候？','xiàn zài shì shén me shí hòu？','Quelle heure est-il maintenant ?'],['我没有时间。','wǒ méi yǒu shí jiān。','Je n\'ai pas le temps.']],
+  '候': [['你什么时候来？','nǐ shén me shí hòu lái？','Quand viens-tu ?'],['他在门口等候。','tā zài mén kǒu děng hòu。','Il attend à la porte.']],
+  '爸': [['我爸爸是老师。','wǒ bà bà shì lǎo shī。','Mon père est professeur.'],['爸爸很忙。','bà bà hěn máng。','Papa est très occupé.']],
+  '妈': [['我妈妈很漂亮。','wǒ mā mā hěn piào liàng。','Ma mère est très jolie.'],['妈妈在家做饭。','mā mā zài jiā zuò fàn。','Maman cuisine à la maison.']],
+  '子': [['这是我的儿子。','zhè shì wǒ de ér zi。','C\'est mon fils.'],['杯子在桌子上。','bēi zi zài zhuō zi shàng。','La tasse est sur la table.']],
+  '女': [['她是我女朋友。','tā shì wǒ nǚ péng yǒu。','Elle est ma petite amie.'],['那个女孩很聪明。','nà ge nǚ hái hěn cōng míng。','Cette fille est très intelligente.']],
+  '老': [['我爷爷很老。','wǒ yé yé hěn lǎo。','Mon grand-père est très âgé.'],['他是我的老朋友。','tā shì wǒ de lǎo péng yǒu。','Il est mon vieil ami.']],
+  '师': [['她是我的老师。','tā shì wǒ de lǎo shī。','Elle est mon professeur.'],['老师很喜欢我们。','lǎo shī hěn xǐ huān wǒ men。','Le professeur nous aime bien.']],
+  '生': [['我是大学生。','wǒ shì dà xué shēng。','Je suis étudiant à l\'université.'],['他是王先生。','tā shì wáng xiān shēng。','Il est monsieur Wang.']],
+  '同': [['他是我的同学。','tā shì wǒ de tóng xué。','Il est mon camarade de classe.'],['我们同一个班。','wǒ men tóng yī gè bān。','Nous sommes dans la même classe.']],
+  '朋': [['他是我的好朋友。','tā shì wǒ de hǎo péng yǒu。','Il est mon bon ami.'],['我有很多朋友。','wǒ yǒu hěn duō péng yǒu。','J\'ai beaucoup d\'amis.']],
+  '友': [['她对我很友好。','tā duì wǒ hěn yǒu hǎo。','Elle est très gentille avec moi.'],['我们是好朋友。','wǒ men shì hǎo péng yǒu。','Nous sommes de bons amis.']],
+  '先': [['你先说吧。','nǐ xiān shuō ba。','Vas-y, parle en premier.'],['他是李先生。','tā shì lǐ xiān shēng。','Il est monsieur Li.']],
+  '小': [['这只猫很小。','zhè zhǐ māo hěn xiǎo。','Ce chat est très petit.'],['我家有一个小花园。','wǒ jiā yǒu yī gè xiǎo huā yuán。','Ma maison a un petit jardin.']],
+  '姐': [['我姐姐很漂亮。','wǒ jiě jiě hěn piào liàng。','Ma grande sœur est très jolie.'],['那位小姐是谁？','nà wèi xiǎo jiě shì shéi？','Qui est cette demoiselle ?']],
+  '服': [['这件衣服很贵。','zhè jiàn yī fú hěn guì。','Ce vêtement est cher.'],['服务员，买单！','fú wù yuán，mǎi dān！','Serveur, l\'addition, s\'il vous plaît !']],
+  '衣': [['我要买新衣服。','wǒ yào mǎi xīn yī fú。','Je veux acheter de nouveaux vêtements.'],['这些衣服很漂亮。','zhè xiē yī fú hěn piào liàng。','Ces vêtements sont très jolis.']],
+  '水': [['我要一杯水。','wǒ yào yī bēi shuǐ。','Je veux un verre d\'eau.'],['这里的水很干净。','zhè lǐ de shuǐ hěn gān jìng。','L\'eau ici est très propre.']],
+  '菜': [['这个菜很好吃。','zhè ge cài hěn hǎo chī。','Ce plat est délicieux.'],['妈妈在做菜。','mā mā zài zuò cài。','Maman cuisine.']],
+  '米': [['我们每天吃米饭。','wǒ men měi tiān chī mǐ fàn。','Nous mangeons du riz tous les jours.'],['这是中国米。','zhè shì zhōng guó mǐ。','C\'est du riz chinois.']],
+  '果': [['我喜欢吃水果。','wǒ xǐ huān chī shuǐ guǒ。','J\'aime manger des fruits.'],['这个苹果很甜。','zhè ge píng guǒ hěn tián。','Cette pomme est très sucrée.']],
+  '苹': [['我要一个苹果。','wǒ yào yī gè píng guǒ。','Je veux une pomme.'],['苹果很好吃。','píng guǒ hěn hǎo chī。','Les pommes sont délicieuses.']],
+  '茶': [['我喜欢喝茶。','wǒ xǐ huān hē chá。','J\'aime boire du thé.'],['这是中国茶。','zhè shì zhōng guó chá。','C\'est du thé chinois.']],
+  '杯': [['这个杯子很漂亮。','zhè ge bēi zi hěn piào liàng。','Cette tasse est très jolie.'],['他喝了两杯水。','tā hē le liǎng bēi shuǐ。','Il a bu deux verres d\'eau.']],
+  '钱': [['你有多少钱？','nǐ yǒu duō shǎo qián？','Combien d\'argent as-tu ?'],['这个不要钱。','zhè ge bù yào qián。','C\'est gratuit.']],
+  '飞': [['我们坐飞机去北京。','wǒ men zuò fēi jī qù běi jīng。','Nous prenons l\'avion pour Pékin.'],['鸟在天上飞。','niǎo zài tiān shàng fēi。','L\'oiseau vole dans le ciel.']],
+  '机': [['飞机几点起飞？','fēi jī jǐ diǎn qǐ fēi？','À quelle heure décolle l\'avion ?'],['我的手机没电了。','wǒ de shǒu jī méi diàn le。','Mon téléphone n\'a plus de batterie.']],
+  '出': [['他出去了。','tā chū qù le。','Il est sorti.'],['我们出发吧。','wǒ men chū fā ba。','Partons.']],
+  '租': [['我们坐出租车吧。','wǒ men zuò chū zū chē ba。','Prenons un taxi.'],['这个房子很贵，我们不租。','zhè ge fáng zi hěn guì，wǒ men bù zū。','Cette maison est chère, nous ne la louerons pas.']],
+  '电': [['我在看电视。','wǒ zài kàn diàn shì。','Je regarde la télé.'],['我的电脑坏了。','wǒ de diàn nǎo huài le。','Mon ordinateur est en panne.']],
+  '视': [['我们一起看电视吧。','wǒ men yī qǐ kàn diàn shì ba。','Regardons la télé ensemble.'],['这个电视很大。','zhè ge diàn shì hěn dà。','Cette télé est très grande.']],
+  '脑': [['我在用电脑工作。','wǒ zài yòng diàn nǎo gōng zuò。','Je travaille sur l\'ordinateur.'],['这台电脑很快。','zhè tái diàn nǎo hěn kuài。','Cet ordinateur est très rapide.']],
+  '影': [['我们去看电影吧。','wǒ men qù kàn diàn yǐng ba。','Allons voir un film.'],['这个电影很有意思。','zhè ge diàn yǐng hěn yǒu yì si。','Ce film est très intéressant.']],
+  '气': [['别生气了。','bié shēng qì le。','Ne te fâche pas.'],['外面空气很好。','wài miàn kōng qì hěn hǎo。','L\'air dehors est très bon.']],
+  '猫': [['我家有一只猫。','wǒ jiā yǒu yī zhī māo。','J\'ai un chat à la maison.'],['这只猫很可爱。','zhè zhǐ māo hěn kě ài。','Ce chat est très mignon.']],
+  '狗': [['他家有一只狗。','tā jiā yǒu yī zhī gǒu。','Il a un chien chez lui.'],['那只狗很大。','nà zhǐ gǒu hěn dà。','Ce chien est très grand.']],
+  '东': [['太阳从东边出来。','tài yáng cóng dōng biān chū lái。','Le soleil se lève à l\'est.'],['我要买点儿东西。','wǒ yào mǎi diǎn ér dōng xī。','Je veux acheter quelques trucs.']],
+  '西': [['他住在城市西边。','tā zhù zài chéng shì xī biān。','Il habite à l\'ouest de la ville.'],['这个东西很有用。','zhè ge dōng xī hěn yǒu yòng。','Cette chose est très utile.']],
+  '人': [['他是好人。','tā shì hǎo rén。','C\'est quelqu\'un de bien.'],['房间里有很多人。','fáng jiān lǐ yǒu hěn duō rén。','Il y a beaucoup de monde dans la pièce.']],
+  '字': [['这个字很难写。','zhè ge zì hěn nán xiě。','Ce caractère est difficile à écrire.'],['你的字写得很漂亮。','nǐ de zì xiě de hěn piào liàng。','Ton écriture est très belle.']],
+  '名': [['他的名字很好听。','tā de míng zì hěn hǎo tīng。','Son nom sonne très bien.'],['请写你的名字。','qǐng xiě nǐ de míng zì。','Écris ton nom, s\'il te plaît.']],
+  '书': [['我在看书。','wǒ zài kàn shū。','Je lis un livre.'],['这本书很有意思。','zhè běn shū hěn yǒu yì si。','Ce livre est très intéressant.']],
+  '汉': [['我在学汉语。','wǒ zài xué hàn yǔ。','J\'apprends le chinois.'],['汉字很有意思。','hàn zì hěn yǒu yì si。','Les caractères chinois sont très intéressants.']],
+  '语': [['你会说英语吗？','nǐ huì shuō yīng yǔ ma？','Parles-tu anglais ?'],['汉语不太难。','hàn yǔ bù tài nán。','Le chinois n\'est pas trop difficile.']],
+  '桌': [['这张桌子很大。','zhè zhāng zhuō zi hěn dà。','Cette table est très grande.'],['我们坐在桌子旁边。','wǒ men zuò zài zhuō zi páng biān。','Nous sommes assis à côté de la table.']],
+  '椅': [['这把椅子很舒服。','zhè bǎ yǐ zi hěn shū fú。','Cette chaise est très confortable.'],['请坐这把椅子。','qǐng zuò zhè bǎ yǐ zi。','Assieds-toi sur cette chaise, s\'il te plaît.']],
+  '谢': [['谢谢你！','xiè xiè nǐ！','Merci !'],['非常感谢你的帮助。','fēi cháng gǎn xiè nǐ de bāng zhù。','Merci beaucoup pour ton aide.']],
+  '客': [['今天有客人来。','jīn tiān yǒu kè rén lái。','Des invités viennent aujourd\'hui.'],['我请客，你不用付钱。','wǒ qǐng kè，nǐ bù yòng fù qián。','C\'est moi qui invite, tu n\'as pas besoin de payer.']],
+  '见': [['很高兴见到你。','hěn gāo xìng jiàn dào nǐ。','Ravi de te rencontrer.'],['我们几点见面？','wǒ men jǐ diǎn jiàn miàn？','On se retrouve à quelle heure ?']],
+  '再': [['再见！','zài jiàn！','Au revoir !'],['请再说一遍。','qǐng zài shuō yī biàn。','Peux-tu répéter, s\'il te plaît ?']],
+  '请': [['请坐。','qǐng zuò。','Assieds-toi, s\'il te plaît.'],['请问，洗手间在哪儿？','qǐng wèn，xǐ shǒu jiān zài nǎr？','Excusez-moi, où sont les toilettes ?']],
+  '对': [['你说得对。','nǐ shuō de duì。','Ce que tu dis est juste.'],['对不起。','duì bù qǐ。','Désolé.']],
+  '起': [['我们一起去吧。','wǒ men yī qǐ qù ba。','Allons-y ensemble.'],['对不起，我错了。','duì bù qǐ，wǒ cuò le。','Désolé, j\'ai eu tort.']],
+  '关': [['请关门。','qǐng guān mén。','Ferme la porte, s\'il te plaît.'],['我们关系很好。','wǒ men guān xì hěn hǎo。','Notre relation est très bonne.']],
+  '系': [['他们的关系很好。','tā men de guān xì hěn hǎo。','Leur relation est très bonne.'],['这个没关系。','zhè ge méi guān xì。','Ce n\'est pas grave.']],
+  '是': [['这是我的家。','zhè shì wǒ de jiā。','C\'est ma maison.'],['他不是老师。','tā bù shì lǎo shī。','Il n\'est pas professeur.']],
+  '有': [['我有一只猫。','wǒ yǒu yī zhī māo。','J\'ai un chat.'],['你有时间吗？','nǐ yǒu shí jiān ma？','As-tu du temps ?']],
+  '看': [['你看，那是什么？','nǐ kàn，nà shì shén me？','Regarde, qu\'est-ce que c\'est ?'],['他每天看新闻。','tā měi tiān kàn xīn wén。','Il regarde les infos tous les jours.']],
+  '听': [['我喜欢听音乐。','wǒ xǐ huān tīng yīn yuè。','J\'aime écouter de la musique.'],['你听懂了吗？','nǐ tīng dǒng le ma？','As-tu compris ce que tu as entendu ?']],
+  '说': [['请说慢一点。','qǐng shuō màn yī diǎn。','Parle un peu plus lentement, s\'il te plaît.'],['他会说汉语。','tā huì shuō hàn yǔ。','Il sait parler chinois.']],
+  '话': [['别说话。','bié shuō huà。','Ne parle pas.'],['我打个电话。','wǒ dǎ gè diàn huà。','Je vais passer un coup de fil.']],
+  '读': [['我在读一本书。','wǒ zài dú yī běn shū。','Je lis un livre.'],['请大声读。','qǐng dà shēng dú。','Lis à voix haute, s\'il te plaît.']],
+  '写': [['我在写汉字。','wǒ zài xiě hàn zì。','J\'écris des caractères chinois.'],['他写字写得很好。','tā xiě zì xiě de hěn hǎo。','Il écrit très bien.']],
+  '叫': [['我叫马克。','wǒ jiào mǎ kè。','Je m\'appelle Marc.'],['别叫他的名字。','bié jiào tā de míng zì。','N\'appelle pas son nom.']],
+  '来': [['请进来。','qǐng jìn lái。','Entre, s\'il te plaît.'],['他明天来。','tā míng tiān lái。','Il vient demain.']],
+  '回': [['我要回家了。','wǒ yào huí jiā le。','Je dois rentrer à la maison.'],['他回来了。','tā huí lái le。','Il est revenu.']],
+  '去': [['我们去商店吧。','wǒ men qù shāng diàn ba。','Allons au magasin.'],['他去北京旅游。','tā qù běi jīng lǚ yóu。','Il voyage à Pékin.']],
+  '吃': [['你吃了吗？','nǐ chī le ma？','As-tu mangé ?'],['这个很好吃。','zhè ge hěn hǎo chī。','C\'est très bon.']],
+  '喝': [['你想喝什么？','nǐ xiǎng hē shén me？','Que veux-tu boire ?'],['他每天喝水。','tā měi tiān hē shuǐ。','Il boit de l\'eau tous les jours.']],
+  '睡': [['我要去睡觉了。','wǒ yào qù shuì jiào le。','Je vais aller me coucher.'],['他睡得很晚。','tā shuì de hěn wǎn。','Il se couche très tard.']],
+  '觉': [['我觉得很好。','wǒ jué de hěn hǎo。','Je trouve que c\'est bien.'],['孩子们在睡觉。','hái zi men zài shuì jiào。','Les enfants dorment.']],
+  '打': [['我给你打电话。','wǒ gěi nǐ dǎ diàn huà。','Je vais t\'appeler.'],['他喜欢打球。','tā xǐ huān dǎ qiú。','Il aime jouer au ballon.']],
+  '做': [['你在做什么？','nǐ zài zuò shén me？','Que fais-tu ?'],['我们一起做作业。','wǒ men yī qǐ zuò zuò yè。','Faisons les devoirs ensemble.']],
+  '买': [['我想买一本书。','wǒ xiǎng mǎi yī běn shū。','Je veux acheter un livre.'],['你买了什么？','nǐ mǎi le shén me？','Qu\'as-tu acheté ?']],
+  '开': [['请开门。','qǐng kāi mén。','Ouvre la porte, s\'il te plaît.'],['我们几点开始？','wǒ men jǐ diǎn kāi shǐ？','On commence à quelle heure ?']],
+  '坐': [['请坐这里。','qǐng zuò zhè lǐ。','Assieds-toi ici, s\'il te plaît.'],['他坐在椅子上。','tā zuò zài yǐ zi shàng。','Il est assis sur la chaise.']],
+  '住': [['你住在哪儿？','nǐ zhù zài nǎr？','Où habites-tu ?'],['他们住得很远。','tā men zhù de hěn yuǎn。','Ils habitent très loin.']],
+  '习': [['我每天学习汉语。','wǒ měi tiān xué xí hàn yǔ。','J\'étudie le chinois tous les jours.'],['这是他的习惯。','zhè shì tā de xí guàn。','C\'est son habitude.']],
+  '工': [['他在银行工作。','tā zài yín háng gōng zuò。','Il travaille dans une banque.'],['工作很忙。','gōng zuò hěn máng。','Le travail est très chargé.']],
+  '作': [['我在做作业。','wǒ zài zuò zuò yè。','Je fais mes devoirs.'],['他的工作很有意思。','tā de gōng zuò hěn yǒu yì si。','Son travail est très intéressant.']],
 };
 
 var LEVELS = { hsk1: HSK1, hsk2: HSK2, hsk3: HSK3, moncours: MON_COURS };
@@ -930,7 +1058,6 @@ function startSession(queue, levelLabel){
   session = { queue: queue, index: 0, results: new Array(queue.length).fill(null) };
 
   document.getElementById('summaryCard').style.display = 'none';
-  document.getElementById('placeholderCard').style.display = 'none';
   document.getElementById('practiceCard').style.display = 'block';
   document.getElementById('sessionArea').style.display = 'block';
   document.getElementById('sessionLevelLabel').textContent = levelLabel;
@@ -938,21 +1065,6 @@ function startSession(queue, levelLabel){
   renderCharList();
   loadSessionChar(0);
 }
-
-// Sélection aléatoire de la visite : générée une seule fois au chargement de la page,
-// stable tant que la page n'est pas rechargée.
-var dailyList = shuffle(HSK1).slice(0, 20);
-var dailyListWrap = document.getElementById('dailyList');
-dailyList.forEach(function(entry){
-  var b = document.createElement('button');
-  b.textContent = entry[0];
-  b.title = entry[1];
-  b.disabled = true;
-  dailyListWrap.appendChild(b);
-});
-document.getElementById('startDailyBtn').onclick = function(){
-  startSession(dailyList.slice(), 'Sélection du jour');
-};
 
 function renderCharList(){
   var wrap = document.getElementById('charList');
@@ -982,43 +1094,19 @@ function loadSessionChar(idx){
   loadSubChar(0);
 }
 
-// Construit la liste des caractères à tracer pour cette position de séance :
-// le caractère principal, puis (si la case est cochée et qu'un exemple existe)
-// chaque caractère du mot composé donné en exemple dans le livre.
+// Construit la liste des caractères à tracer pour cette position de séance.
+// Le tracé des mots composés a été désactivé (le mot d'exemple reste affiché
+// en lecture seule via renderExample, juste pas à dessiner).
 function buildSubQueue(entry){
-  var q = [{ char: entry[0], entry: entry, isCompoundPart: false }];
-  var includeCompound = document.getElementById('compoundToggle').checked;
-  if(includeCompound && entry.length >= 6 && entry[3]){
-    var compoundChars = Array.from(entry[3]).filter(function(c){
-      var code = c.codePointAt(0);
-      return code >= 0x4e00 && code <= 0x9fff; // ne garder que de vrais sinogrammes (pas la ponctuation type "？")
-    }).filter(function(c){
-      return c !== entry[0]; // on saute le caractère déjà tracé juste avant, on va direct à la nouveauté du mot
-    });
-    compoundChars.forEach(function(c, i){
-      q.push({ char: c, entry: entry, isCompoundPart: true, compoundIndex: i, compoundTotal: compoundChars.length });
-    });
-  }
-  return q;
+  return [{ char: entry[0], entry: entry, isCompoundPart: false }];
 }
 
 function loadSubChar(i){
   subIndex = i;
   var item = subQueue[i];
   if(!item) return;
-  loadChar(item.char, item.isCompoundPart ? null : item.entry);
-  if(item.isCompoundPart){
-    renderCompoundProgress(item);
-  }
+  loadChar(item.char, item.entry);
   setTimeout(function(){ if(writer){ startQuiz(); } }, 300);
-}
-
-function renderCompoundProgress(item){
-  var box = document.getElementById('exampleLine');
-  if(!box) return;
-  var entry = item.entry;
-  fillExampleBox(box, 'Mot :', entry[3], entry[4], entry[5],
-    '(caractère ' + (item.compoundIndex + 1) + '/' + item.compoundTotal + ')');
 }
 
 function updateSessionProgress(){
