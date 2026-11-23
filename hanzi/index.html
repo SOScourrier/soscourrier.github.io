@@ -205,6 +205,15 @@
   .backup-footer summary::before{ content:"⚙ "; opacity:0.7 }
   .backup-footer summary:hover{ color:var(--ink) }
   .backup-footer p{ font-size:12px; color:var(--muted); margin:10px 0 }
+  .session-mix{ font-size:12px; color:var(--muted); margin:-2px 0 10px }
+  .allchars-summary{ font-size:12px; color:var(--muted); margin:0 0 10px }
+  .st-tag{ font-size:11px; border-radius:10px; padding:2px 8px; white-space:nowrap }
+  .st-new{ background:var(--line); color:var(--muted) }
+  .st-seen{ background:var(--ok-light); color:var(--ok) }
+  .st-review{ background:var(--accent-light); color:var(--accent) }
+  .st-acq{ background:var(--ok); color:#fff }
+  .allchars-go{ border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:6px; padding:4px 9px; font-size:12px; cursor:pointer }
+  .allchars-go:hover{ border-color:var(--accent); color:var(--accent) }
   .stroke-rules{ margin:0; padding-left:20px; font-size:13px; color:var(--ink) }
   .stroke-rules li{ margin-bottom:8px; line-height:1.5 }
   .stroke-rules strong{ color:var(--accent) }
@@ -247,6 +256,7 @@
         <div class="bar"><div class="bar-fill" id="sessionBarFill"></div></div>
         <span id="sessionLevelLabel">HSK 1</span>
       </div>
+      <div class="session-mix" id="sessionMix"></div>
       <div class="char-list" id="charList"></div>
       <button class="finish-btn" id="finishBtn" style="display:block">Voir le récapitulatif</button>
     </div>
@@ -292,6 +302,21 @@
       <div id="sentencesList"></div>
     </div>
   </div>
+
+  <details class="backup-footer" id="allCharsDetails">
+    <summary>Tous les caractères par niveau</summary>
+    <p>Vue d'ensemble de chaque niveau avec ton statut pour chaque caractère. Le bouton ▶ lance une mini-séance sur ce seul caractère.</p>
+    <select id="allCharsLevel" style="font-size:13px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); margin-bottom:8px;">
+      <option value="moncours1">Mon cours 1 (1-80)</option>
+      <option value="moncours2">Mon cours 2 (81-130)</option>
+      <option value="moncours3">Mon cours 3 (131-177)</option>
+      <option value="hsk1">HSK 1</option>
+      <option value="hsk2">HSK 2</option>
+      <option value="hsk3">HSK 3</option>
+    </select>
+    <div class="allchars-summary" id="allCharsSummary"></div>
+    <div id="allCharsList"></div>
+  </details>
 
   <details class="backup-footer">
     <summary>Rappel : ordre des traits (笔顺)</summary>
@@ -808,6 +833,20 @@ function renderAcquiredList(){
     wrap.innerHTML = '<div class="review-empty">Aucun caractère marqué comme définitivement acquis.</div>';
     return;
   }
+  var allBtn = document.createElement('button');
+  allBtn.className = 'rok';
+  allBtn.style.cssText = 'margin-bottom:10px; padding:6px 10px;';
+  allBtn.textContent = '↩ Tout réintégrer (' + entries.length + ')';
+  allBtn.onclick = function(){
+    if(!confirm('Remettre les ' + entries.length + ' caractères acquis dans la rotation ?')) return;
+    entries.forEach(function(e){
+      var r = progress.chars[e[0]];
+      if(r){ r.acquired = false; r.okStreak = 0; r.updatedAt = Date.now(); }
+    });
+    saveProgress();
+    renderReviewList(); renderReviewTag(); renderAcquiredTag(); renderAcquiredList();
+  };
+  wrap.appendChild(allBtn);
   entries.forEach(function(entry){
     var char = entry[0];
     var row = document.createElement('div');
@@ -831,6 +870,7 @@ function renderReviewList(){
   var summary = document.getElementById('reviewSummary');
   var entries = getReviewEntries();
   if(summary) summary.textContent = 'À revoir' + (entries.length > 0 ? ' (' + entries.length + ')' : '');
+  if(typeof renderAllChars === 'function') renderAllChars();
   wrap.innerHTML = '';
   if(entries.length === 0){
     wrap.innerHTML = '<div class="review-empty">Aucun caractère à revoir pour l\'instant 🎉</div>';
@@ -1020,60 +1060,49 @@ function shuffle(arr){
   return a;
 }
 
-// Répartit chaque séance entre trois catégories, en excluant d'abord tout
-// caractère marqué "définitivement acquis" :
-//  - nouveau  : jamais encore pratiqué (tiré au hasard dans tout le reste
-//               du pool, pas dans l'ordre du livre) — pour "Mon cours"
-//  - révision : raté au moins une fois et pas encore retiré de la révision
-//  - rafraîchissement : déjà réussi, une petite part lui est réservée à
-//               chaque séance pour qu'il revienne de temps en temps
+// Compose chaque séance à partir de trois groupes (les caractères marqués
+// "définitivement acquis" sont d'abord exclus) :
+//  - nouveaux : aucun passage enregistré. Au moins la moitié de la séance leur
+//               est réservée tant qu'il en reste, pour que le lot avance vraiment.
+//  - à retravailler : au moins un échec ET dernier passage raté (pas encore
+//               de réussite depuis). Ils reviennent en priorité.
+//  - consolidation : déjà réussis au moins une fois, mais pas encore 3 fois
+//               d'affilée. Ils reviennent pour rafraîchir la mémoire.
+// Si un groupe est trop petit, ses places sont comblées par les autres.
 function buildSessionQueue(pool, batchSize, sequential){
   pool = pool.filter(function(e){ return !isAcquired(e[0]); });
   var take = Math.min(batchSize, pool.length);
 
-  var priority = pool.filter(function(e){
+  var fresh = [], weak = [], steady = [];
+  pool.forEach(function(e){
     var r = progress.chars[e[0]];
-    return r && !r.mastered && (r.failCount || 0) >= 1;
+    if(!r) fresh.push(e);
+    else if((r.failCount || 0) >= 1 && !r.mastered && !(r.okStreak > 0)) weak.push(e);
+    else steady.push(e);
   });
-  var rest = pool.filter(function(e){ return priority.indexOf(e) === -1; });
+  fresh = shuffle(fresh); weak = shuffle(weak); steady = shuffle(steady);
 
-  var chosenPriority, chosenRest;
+  var newSlots = Math.min(fresh.length, Math.ceil(take * 0.5));
+  var remaining = take - newSlots;
+  var weakSlots = Math.min(weak.length, Math.ceil(remaining * 0.6));
+  var steadySlots = Math.min(steady.length, remaining - weakSlots);
 
-  if(sequential){
-    var neverAttempted = rest.filter(function(e){ return !progress.chars[e[0]]; });
-    var alreadyOk = rest.filter(function(e){ return progress.chars[e[0]] && neverAttempted.indexOf(e) === -1; });
+  var pickFresh = fresh.slice(0, newSlots);
+  var pickWeak = weak.slice(0, weakSlots);
+  var pickSteady = steady.slice(0, steadySlots);
 
-    // Petite part réservée au rafraîchissement des caractères déjà réussis,
-    // à chaque séance (pas seulement une fois le cours entièrement vu).
-    var refreshSlots = alreadyOk.length > 0 ? Math.min(alreadyOk.length, Math.max(1, Math.round(take * 0.15))) : 0;
-    var chosenRefresh = shuffle(alreadyOk).slice(0, refreshSlots);
+  // Complète si besoin : d'abord d'autres nouveaux, puis d'autres à retravailler, puis le reste
+  var missing = take - (pickFresh.length + pickWeak.length + pickSteady.length);
+  if(missing > 0){ var more = fresh.slice(pickFresh.length, pickFresh.length + missing); pickFresh = pickFresh.concat(more); missing -= more.length; }
+  if(missing > 0){ var more2 = weak.slice(pickWeak.length, pickWeak.length + missing); pickWeak = pickWeak.concat(more2); missing -= more2.length; }
+  if(missing > 0){ var more3 = steady.slice(pickSteady.length, pickSteady.length + missing); pickSteady = pickSteady.concat(more3); missing -= more3.length; }
 
-    var afterRefresh = take - chosenRefresh.length;
-    var reviewSlots = Math.min(priority.length, Math.ceil(afterRefresh / 2));
-    chosenPriority = shuffle(priority).slice(0, reviewSlots);
-
-    var afterReview = afterRefresh - chosenPriority.length;
-    // Tirage au hasard parmi TOUS les jamais-vus, plus dans l'ordre strict du livre.
-    var chosenNew = shuffle(neverAttempted).slice(0, afterReview);
-
-    var usedSoFar = chosenRefresh.length + chosenPriority.length + chosenNew.length;
-    var stillNeeded = take - usedSoFar;
-    if(stillNeeded > 0){
-      // Plus rien de neuf ni à réviser/rafraîchir en quantité suffisante :
-      // on complète avec le reste du pool, au hasard.
-      var used = chosenRefresh.concat(chosenPriority, chosenNew);
-      var leftover = pool.filter(function(e){ return used.indexOf(e) === -1; });
-      chosenNew = chosenNew.concat(shuffle(leftover).slice(0, stillNeeded));
-    }
-    chosenRest = chosenRefresh.concat(chosenNew);
-  } else {
-    var priorityCap = Math.max(1, Math.ceil(take / 2));
-    chosenPriority = shuffle(priority).slice(0, Math.min(priorityCap, take));
-    var remaining = take - chosenPriority.length;
-    chosenRest = shuffle(rest).slice(0, remaining);
-  }
-
-  return shuffle(chosenPriority.concat(chosenRest));
+  var result = shuffle(pickFresh.concat(pickWeak, pickSteady));
+  result.meta = {
+    fresh: pickFresh.length, weak: pickWeak.length, steady: pickSteady.length,
+    unseenLeft: fresh.length - pickFresh.length
+  };
+  return result;
 }
 
 var MONCOURS_LABELS = { moncours1: 'Mon cours 1', moncours2: 'Mon cours 2', moncours3: 'Mon cours 3' };
@@ -1084,18 +1113,34 @@ document.getElementById('startSessionBtn').onclick = function(){
   var pool = levelKey === 'all' ? HSK1.concat(HSK2, HSK3) : LEVELS[levelKey];
   var sequential = levelKey.indexOf('moncours') === 0;
   var picked = buildSessionQueue(pool, batchSize, sequential);
+  var errBox = document.getElementById('errorMsg');
+  if(picked.length === 0){
+    errBox.textContent = 'Plus aucun caractère à tirer dans ce lot : les ' + pool.length +
+      ' sont marqués "définitivement acquis". Ouvre "Caractères définitivement acquis" en bas de page pour en réintégrer, ou choisis un autre lot.';
+    errBox.style.display = 'block';
+    return;
+  }
+  errBox.style.display = 'none';
   var levelLabel = levelKey === 'all' ? 'Tous niveaux' :
     (MONCOURS_LABELS[levelKey] || levelKey.toUpperCase().replace('HSK','HSK '));
   startSession(picked, levelLabel);
 };
 
 function startSession(queue, levelLabel){
-  session = { queue: queue, index: 0, results: new Array(queue.length).fill(null) };
+  session = { queue: queue, index: 0, results: new Array(queue.length).fill(null), scored: {} };
 
   document.getElementById('summaryCard').style.display = 'none';
   document.getElementById('practiceCard').style.display = 'block';
   document.getElementById('sessionArea').style.display = 'block';
   document.getElementById('sessionLevelLabel').textContent = levelLabel;
+  var mixBox = document.getElementById('sessionMix');
+  if(mixBox){
+    var mt = queue.meta;
+    mixBox.textContent = mt
+      ? mt.fresh + ' nouveaux · ' + mt.weak + ' à retravailler · ' + mt.steady + ' à consolider' +
+        (mt.unseenLeft > 0 ? ' — encore ' + mt.unseenLeft + ' jamais vus dans ce lot après cette séance' : '')
+      : '';
+  }
 
   renderCharList();
   loadSessionChar(0);
@@ -1279,10 +1324,14 @@ function startQuiz(){
       quizStatus.className = 'quiz-status err';
     },
     onComplete: function(){
-      var justAcquired = recordResult(thisChar, !hadMistake);
-      // Seul le résultat du caractère principal compte pour le suivi de la séance
-      // (le point de couleur dans la liste, la barre de progression).
-      if(!thisItem.isCompoundPart && session){
+      // Seul le PREMIER passage de chaque caractère dans la séance compte
+      // (historique, série de réussites, récapitulatif). Rejouer un caractère
+      // ou y revenir avec "Précédent" sert à s'entraîner, sans fausser la série
+      // qui mène au statut "définitivement acquis".
+      var firstPass = !session || !session.scored[thisChar];
+      if(session) session.scored[thisChar] = true;
+      var justAcquired = firstPass ? recordResult(thisChar, !hadMistake) : false;
+      if(firstPass && !thisItem.isCompoundPart && session){
         session.results[session.index] = { ok: !hadMistake };
         renderCharList();
         updateSessionProgress();
@@ -1475,8 +1524,65 @@ document.getElementById('importFile').onchange = function(e){
   reader.readAsText(file);
 };
 
+// ---- Vue d'ensemble : tous les caractères d'un niveau avec leur statut ----
+var ALLCHARS_LABELS = { moncours1: 'Mon cours 1', moncours2: 'Mon cours 2', moncours3: 'Mon cours 3', hsk1: 'HSK 1', hsk2: 'HSK 2', hsk3: 'HSK 3' };
+
+function charStatus(char){
+  var r = progress.chars[char];
+  if(r && r.acquired) return { cls: 'st-acq', text: '🔒 acquis', rank: 3 };
+  if(isInReview(char)) return { cls: 'st-review', text: '🔁 à revoir (' + (r.failCount || 0) + ')', rank: 1 };
+  if(r) return { cls: 'st-seen', text: 'vu · ' + (r.okStreak || 0) + '/' + AUTO_ACQUIRE_STREAK, rank: 2 };
+  return { cls: 'st-new', text: 'jamais vu', rank: 0 };
+}
+
+function renderAllChars(){
+  var sel = document.getElementById('allCharsLevel');
+  var list = document.getElementById('allCharsList');
+  var sum = document.getElementById('allCharsSummary');
+  if(!sel || !list || !sum) return;
+  var key = sel.value;
+  var entries = LEVELS[key] || [];
+  var counts = { acq: 0, review: 0, seen: 0, fresh: 0 };
+  list.innerHTML = '';
+  entries.forEach(function(entry, i){
+    var st = charStatus(entry[0]);
+    if(st.cls === 'st-acq') counts.acq++;
+    else if(st.cls === 'st-review') counts.review++;
+    else if(st.cls === 'st-seen') counts.seen++;
+    else counts.fresh++;
+
+    var row = document.createElement('div');
+    row.className = 'review-item';
+    row.style.marginBottom = '6px';
+    row.innerHTML =
+      '<span class="rf" style="width:26px; text-align:right">' + (i + 1) + '</span>' +
+      '<span class="rc">' + entry[0] + '</span>' +
+      '<span class="ri"><span class="rp">' + entry[1] + '</span> <span class="rm">' + entry[2] + '</span></span>' +
+      '<span class="st-tag ' + st.cls + '">' + st.text + '</span>';
+    var go = document.createElement('button');
+    go.className = 'allchars-go';
+    go.title = 'S\'entraîner sur ce caractère';
+    go.setAttribute('aria-label', 'S\'entraîner sur ' + entry[0]);
+    go.textContent = '▶';
+    go.onclick = function(){
+      document.getElementById('errorMsg').style.display = 'none';
+      startSession([entry], ALLCHARS_LABELS[key] || key);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    row.appendChild(go);
+    list.appendChild(row);
+  });
+  sum.textContent = entries.length + ' caractères · ' + counts.acq + ' acquis · ' + counts.seen +
+    ' en cours · ' + counts.review + ' à revoir · ' + counts.fresh + ' jamais vus';
+}
+document.getElementById('allCharsLevel').onchange = renderAllChars;
+document.getElementById('allCharsDetails').addEventListener('toggle', function(){
+  if(this.open) renderAllChars();
+});
+
 renderReviewList();
 renderAcquiredList();
+renderAllChars();
 
 // Enregistre le service worker pour un fonctionnement hors connexion
 // après le premier chargement complet de la page.
